@@ -103,6 +103,16 @@
     <button class="btn-excel" onclick="exportToExcel()">Export ke Excel (.xlsx)</button>
 
     <h3 style="text-align: left; margin-top: 25px;">Daftar Pelanggaran</h3>
+
+<!-- Input Filter / Search -->
+<div class="form-group">
+    <input type="text" id="search-input" placeholder="🔍 Cari nama siswa atau kelas..." onkeyup="filterData()" style="padding: 10px; font-size: 14px; border: 2px solid #2f5597; border-radius: 5px;">
+</div>
+
+<table>
+    <thead>
+        ...
+
     <table>
         <thead>
             <tr>
@@ -140,6 +150,51 @@
         }
         records = data;
         renderTable();
+
+        // Fungsi untuk memfilter data berdasarkan Nama atau Kelas
+function filterData() {
+    const keyword = document.getElementById('search-input').value.toLowerCase();
+    
+    // Filter array records berdasarkan nama atau kelas
+    const filteredRecords = records.filter(item => {
+        const nama = (item.nama || '').toLowerCase();
+        const kelas = (item.kelas || '').toLowerCase();
+        
+        return nama.includes(keyword) || kelas.includes(keyword);
+    });
+
+    // Tampilkan hasil filter ke tabel
+    renderFilteredTable(filteredRecords);
+}
+
+// Fungsi bantu untuk menampilkan data yang sudah difilter
+function renderFilteredTable(dataList) {
+    const tbody = document.getElementById('table-body');
+    tbody.innerHTML = '';
+
+    if (dataList.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; color: #888;">Data tidak ditemukan</td></tr>`;
+        return;
+    }
+
+    dataList.forEach((item, index) => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td>${index + 1}</td>
+            <td>${item.tanggal || '-'}</td>
+            <td>${item.nama || '-'}</td>
+            <td>${item.kelas || '-'}</td>
+            <td>${item.pelanggaran || '-'}</td>
+            <td>${item.foto_url ? `<img src="${item.foto_url}" class="thumb">` : '-'}</td>
+            <td>
+                <button class="btn-edit" onclick="editData(${item.id})">Edit</button>
+                <button class="btn-delete" onclick="hapusData(${item.id})">Hapus</button>
+            </td>
+        `;
+        tbody.appendChild(tr);
+    });
+}
+
     }
 
     // 2. Tampilkan Data di Tabel HTML
