@@ -8,6 +8,8 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <!-- ExcelJS -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         body { font-family: Arial, sans-serif; margin: 20px; background-color: #f4f6f9; }
         
@@ -22,7 +24,7 @@
             overflow: hidden;    
         }
 
-        /* Watermark Berbayang / Transparan */
+        /* Watermark Transparan */
         .container::before {
             content: "";
             position: absolute;
@@ -40,28 +42,39 @@
             z-index: 0;                     
         }
 
-        .container > * {
-            position: relative;
-            z-index: 1;
-        }
-
+        .container > * { position: relative; z-index: 1; }
         h2 { text-align: center; color: #1f4e78; margin-bottom: 5px; text-transform: uppercase; }
         h3.school-name { text-align: center; color: #2f5597; margin-top: 0; margin-bottom: 5px; font-size: 18px; }
         .sub-title { text-align: center; font-weight: bold; color: #333; margin-top: 0; margin-bottom: 20px; font-size: 14px; }
+        
+        /* Container Diagram */
+        .chart-section {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 25px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        .chart-container {
+            position: relative;
+            height: 260px;
+            width: 100%;
+        }
+
         .form-group { margin-bottom: 15px; }
         label { display: block; font-weight: bold; margin-bottom: 5px; }
         input, select { width: 100%; padding: 8px; box-sizing: border-box; }
         button { padding: 10px 15px; border: none; cursor: pointer; border-radius: 4px; font-weight: bold; }
         .btn-submit { background-color: #28a745; color: white; width: 100%; }
         .btn-excel { background-color: #1f4e78; color: white; margin-top: 15px; margin-bottom: 15px; width: 100%; font-size: 16px; }
-        .btn-music { background-color: #6f42c1; color: white; margin-bottom: 15px; width: 100%; font-size: 14px; }
         .btn-edit { background-color: #ffc107; color: black; padding: 5px 10px; margin-right: 5px; border-radius: 3px; }
         .btn-delete { background-color: #dc3545; color: white; padding: 5px 10px; border-radius: 3px; }
         .btn-cancel { background-color: #6c757d; color: white; display: none; margin-top: 5px; width: 100%; }
         table { width: 100%; border-collapse: collapse; margin-top: 15px; }
         th, td { border: 1px solid #ddd; padding: 8px; text-align: center; vertical-align: middle; }
         th { background-color: #2f5597; color: white; }
-        img.thumb { width: 50px; height: 50px; object-fit: cover; }
+        img.thumb { width: 50px; height: 50px; object-fit: cover; border-radius: 4px; }
     </style>
 </head>
 <body>
@@ -71,31 +84,30 @@
     <h3 class="school-name">SMP GELORA BEKASI</h3>
     <div class="sub-title">TAHUN AJARAN 2026-2027</div>
     
-    <!-- Audio Background (Ganti URL dengan link MP3 Anda jika ada) -->
-    <audio id="bg-music" loop>
+    <audio id="bg-music" loop preload="none">
         <source src="https://pdhraphbbdjsabhiokgo.supabase.co/storage/v1/object/public/Sound/Raiso%20Ngapusi%20-%20La%20Tasya%20Feat.%20Aryan%20Tekomlaku%20(HIPHOP%20DANGDUT%20VERSION).mp3" type="audio/mpeg">
     </audio>
 
     <input type="hidden" id="edit-id">
 
     <div class="form-group">
-        <label>Hari / Tanggal</label>
+        <label for="tanggal">Hari / Tanggal</label>
         <input type="date" id="tanggal">
     </div>
     <div class="form-group">
-        <label>Nama Siswa</label>
+        <label for="nama">Nama Siswa</label>
         <input type="text" id="nama" placeholder="Masukkan nama siswa">
     </div>
     <div class="form-group">
-        <label>Kelas</label>
+        <label for="kelas">Kelas</label>
         <input type="text" id="kelas" placeholder="Contoh: 7A">
     </div>
     <div class="form-group">
-        <label>Jenis Pelanggaran</label>
+        <label for="pelanggaran">Jenis Pelanggaran</label>
         <input type="text" id="pelanggaran" placeholder="Contoh: Terlambat, Baju Dikeluarkan">
     </div>
     <div class="form-group">
-        <label>Foto Bukti</label>
+        <label for="foto">Foto Bukti</label>
         <input type="file" id="foto" accept="image/*">
     </div>
 
@@ -104,9 +116,16 @@
 
     <button class="btn-excel" onclick="exportToExcel()">Export ke Excel (.xlsx)</button>
 
+    <!-- Diagram Statistik -->
+    <div class="chart-section">
+        <h3 style="margin-top: 0; color: #1f4e78; font-size: 16px;">📊 Statistik Jenis Pelanggaran Terbanyak</h3>
+        <div class="chart-container">
+            <canvas id="pelanggaranChart"></canvas>
+        </div>
+    </div>
+
     <h3 style="text-align: left; margin-top: 25px;">Daftar Pelanggaran</h3>
 
-    <!-- Input Filter / Search -->
     <div class="form-group">
         <input type="text" id="search-input" placeholder="🔍 Cari nama siswa atau kelas..." onkeyup="filterData()" style="padding: 10px; font-size: 14px; border: 2px solid #2f5597; border-radius: 5px;">
     </div>
@@ -128,19 +147,20 @@
 </div>
 
 <script>
-    // Konfigurasi Supabase
     const SUPABASE_URL = "https://pdhraphbbdjsabhiokgo.supabase.co";
     const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBkaHJhcGhiYmRqc2FiaGlva2dvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkyODMxODUsImV4cCI6MjEwNDg1OTE4NX0.FesFprS6pIbuz1x2YDOw1rKdvjgirWRBt3sPrR5EhpY";
     const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
     let records = [];
+    let myChart = null;
 
-    // 1. Muat Data Utama
+    document.getElementById('tanggal').value = new Date().toISOString().split('T')[0];
+
     async function loadData() {
         const { data, error } = await _supabase
             .from('pelanggaran')
             .select('*')
-            .order('id', { ascending: true });
+            .order('id', { ascending: false });
 
         if (error) {
             console.error("Gagal mengambil data:", error);
@@ -148,9 +168,9 @@
         }
         records = data;
         renderTable(records);
+        updateChart(records);
     }
 
-    // 2. Render Tabel Data
     function renderTable(dataToRender = records) {
         const tbody = document.getElementById('table-body');
         tbody.innerHTML = '';
@@ -168,7 +188,7 @@
                 <td>${item.nama || '-'}</td>
                 <td>${item.kelas || '-'}</td>
                 <td>${item.pelanggaran || '-'}</td>
-                <td>${item.foto_url ? `<img src="${item.foto_url}" class="thumb">` : '-'}</td>
+                <td>${item.foto_url ? `<a href="${item.foto_url}" target="_blank"><img src="${item.foto_url}" class="thumb"></a>` : '-'}</td>
                 <td>
                     <button class="btn-edit" onclick="editData(${item.id})">Edit</button>
                     <button class="btn-delete" onclick="hapusData(${item.id})">Hapus</button>
@@ -178,44 +198,84 @@
         });
     }
 
-    // 3. Filter Data Real-time
+    // Fungsi Pembaharuan Diagram
+    function updateChart(dataToRender) {
+        const counts = {};
+        
+        // Hitung frekuensi tiap pelanggaran
+        dataToRender.forEach(item => {
+            const jenis = (item.pelanggaran || 'Lainnya').trim();
+            counts[jenis] = (counts[jenis] || 0) + 1;
+        });
+
+        // Urutkan dari terbanyak & ambil Top 5
+        const sorted = Object.entries(counts)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 5);
+
+        const labels = sorted.map(item => item[0]);
+        const values = sorted.map(item => item[1]);
+
+        const ctx = document.getElementById('pelanggaranChart').getContext('2d');
+
+        if (myChart) {
+            myChart.destroy();
+        }
+
+        myChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels.length ? labels : ['Belum Ada Data'],
+                datasets: [{
+                    label: 'Jumlah Pelanggaran',
+                    data: values.length ? values : [0],
+                    backgroundColor: 'rgba(47, 85, 151, 0.75)',
+                    borderColor: '#2f5597',
+                    borderWidth: 1.5,
+                    borderRadius: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: { stepSize: 1, precision: 0 }
+                    }
+                }
+            }
+        });
+    }
+
     function filterData() {
         const keyword = document.getElementById('search-input').value.toLowerCase().trim();
-        
         const filtered = records.filter(item => {
             const nama = (item.nama || '').toLowerCase();
             const kelas = (item.kelas || '').toLowerCase();
             return nama.includes(keyword) || kelas.includes(keyword);
         });
-
         renderTable(filtered);
+        updateChart(filtered);
     }
 
-    // 4. Fitur Musik (Autoplay via Interaksi + Toggle Button)
     function playAudioOnInteraction() {
         const audio = document.getElementById('bg-music');
-        audio.volume = 0.2; // Volume 20%
+        audio.volume = 0.2;
         audio.play().catch(e => console.log("Autoplay ditahan browser:", e));
         document.removeEventListener('click', playAudioOnInteraction);
     }
     document.addEventListener('click', playAudioOnInteraction);
 
-    function toggleMusic() {
-        const audio = document.getElementById('bg-music');
-        if (audio.paused) {
-            audio.play();
-        } else {
-            audio.pause();
-        }
-    }
-
-    // 5. Simpan / Update Data
     async function simpanData() {
         const editId = document.getElementById('edit-id').value;
         const tanggal = document.getElementById('tanggal').value;
-        const nama = document.getElementById('nama').value;
-        const kelas = document.getElementById('kelas').value;
-        const pelanggaran = document.getElementById('pelanggaran').value;
+        const nama = document.getElementById('nama').value.trim();
+        const kelas = document.getElementById('kelas').value.trim();
+        const pelanggaran = document.getElementById('pelanggaran').value.trim();
         const fotoFile = document.getElementById('foto').files[0];
 
         if (!nama || !kelas || !pelanggaran) {
@@ -225,7 +285,9 @@
         let fotoUrl = null;
 
         if (fotoFile) {
-            const fileName = `${Date.now()}_${fotoFile.name}`;
+            const fileExt = fotoFile.name.split('.').pop();
+            const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
+            
             const { data: uploadData, error: uploadError } = await _supabase.storage
                 .from('foto-pelanggaran')
                 .upload(fileName, fotoFile);
@@ -263,7 +325,6 @@
         loadData();
     }
 
-    // 6. Persiapan Edit Data
     function editData(id) {
         const item = records.find(r => r.id === id);
         if (!item) return;
@@ -276,12 +337,12 @@
 
         document.getElementById('btn-save').innerText = "Update Data";
         document.getElementById('btn-cancel').style.display = "block";
+        window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
-    // 7. Batal Edit
     function batalEdit() {
         document.getElementById('edit-id').value = '';
-        document.getElementById('tanggal').value = '';
+        document.getElementById('tanggal').value = new Date().toISOString().split('T')[0];
         document.getElementById('nama').value = '';
         document.getElementById('kelas').value = '';
         document.getElementById('pelanggaran').value = '';
@@ -291,7 +352,6 @@
         document.getElementById('btn-cancel').style.display = "none";
     }
 
-    // 8. Hapus Data
     async function hapusData(id) {
         if (!confirm("Apakah Anda yakin ingin menghapus data ini?")) return;
 
@@ -308,7 +368,6 @@
         }
     }
 
-    // 9. Export ke Excel
     async function exportToExcel() {
         if (records.length === 0) return alert("Tidak ada data untuk diexport!");
 
@@ -341,17 +400,10 @@
             const headerRow = worksheet.addRow(headers);
             
             headerRow.eachCell((cell) => {
-                cell.fill = {
-                    type: 'pattern',
-                    pattern: 'solid',
-                    fgColor: { argb: '2F5597' }
-                };
+                cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: '2F5597' } };
                 cell.font = { name: 'Arial', size: 11, bold: true, color: { argb: 'FFFFFF' } };
                 cell.alignment = { horizontal: 'center', vertical: 'middle' };
-                cell.border = {
-                    top: { style: 'thin' }, left: { style: 'thin' },
-                    bottom: { style: 'thin' }, right: { style: 'thin' }
-                };
+                cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
             });
 
             worksheet.getColumn(1).width = 8;
@@ -376,23 +428,25 @@
 
                 row.eachCell({ includeEmpty: true }, (cell) => {
                     cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
-                    cell.border = {
-                        top: { style: 'thin' }, left: { style: 'thin' },
-                        bottom: { style: 'thin' }, right: { style: 'thin' }
-                    };
+                    cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
                 });
 
                 if (item.foto_url) {
                     try {
                         const response = await fetch(item.foto_url);
                         const arrayBuffer = await response.arrayBuffer();
+                        
+                        let ext = 'png';
+                        if (item.foto_url.includes('.jpg') || item.foto_url.includes('.jpeg')) ext = 'jpeg';
+                        else if (item.foto_url.includes('.webp')) ext = 'webp';
+
                         const imageId = workbook.addImage({
                             buffer: arrayBuffer,
-                            extension: 'jpeg',
+                            extension: ext,
                         });
 
                         worksheet.addImage(imageId, {
-                            tl: { col: 5.35, row: row.number - 0.85 },
+                            tl: { col: 5.2, row: row.number - 0.9 },
                             ext: { width: 60, height: 60 },
                             editAs: 'oneCell'
                         });
@@ -418,7 +472,6 @@
         }
     }
 
-    // Jalankan pertama kali saat halaman dibuka
     loadData();
 </script>
 </body>
