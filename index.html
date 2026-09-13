@@ -33,7 +33,7 @@
 <body>
 
 <div class="container">
-    <h2>REKAPITULASI PELANGGARAN SISWA/SISWI FIX</h2>
+    <h2>REKAPITULASI PELANGGARAN SISWA/SISWI</h2>
     <h3 class="school-name">SMP GELORA BEKASI</h3>
     <div class="sub-title">TAHUN AJARAN 2026-2027</div>
     
@@ -258,7 +258,7 @@ async function exportToExcel() {
         worksheet.addRow([]); // Baris kosong
 
         // Header Tabel
-        const headers = ["No", "Hari / Tanggal", "Nama Siswa", "Kelas", "Jenis Pelanggaran", "Foto Bukti"];
+        const headers = ["No", "Hari / Tanggal", "Nama Siswa", "Kelas", "Jenis Pelanggaran", "Foto"];
         const headerRow = worksheet.addRow(headers);
         
         headerRow.eachCell((cell) => {
