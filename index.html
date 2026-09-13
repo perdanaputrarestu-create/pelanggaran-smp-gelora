@@ -104,7 +104,7 @@
     </div>
     <div class="form-group">
         <label for="pelanggaran">Jenis Pelanggaran</label>
-        <input type="text" id="pelanggaran" placeholder="Contoh: Terlambat, Baju Dikeluarkan">
+        <input type="text" id="pelanggaran" placeholder="Contoh: Terlambat, Baju Dikeluarkan, Merokok">
     </div>
     <div class="form-group">
         <label for="foto">Foto Bukti <small style="color: #666; font-weight: normal;">(Otomatis dikompres &lt; 200KB)</small></label>
@@ -139,7 +139,7 @@
 
     <!-- Diagram Statistik -->
     <div class="chart-section">
-        <h3 style="margin-top: 0; color: #1f4e78; font-size: 16px;">📊 Grafik Seluruh Jenis Pelanggaran</h3>
+        <h3 style="margin-top: 0; color: #1f4e78; font-size: 16px;">📊 Grafik Seluruh Jenis Pelanggaran (Terkategori)</h3>
         <div class="chart-container">
             <canvas id="pelanggaranChart"></canvas>
         </div>
@@ -154,7 +154,7 @@
     let records = [];
     let myChart = null;
 
-    // Palette Warna Siap Pakai (Beda-beda tiap kategori)
+    // Palette Warna Diagram
     const predefinedPalette = [
         { bg: 'rgba(255, 99, 132, 0.85)', border: 'rgba(255, 99, 132, 1)' },   // Merah Muda
         { bg: 'rgba(54, 162, 235, 0.85)', border: 'rgba(54, 162, 235, 1)' },   // Biru
@@ -168,7 +168,6 @@
         { bg: 'rgba(52, 152, 219, 0.85)', border: 'rgba(52, 152, 219, 1)' }    // Biru Muda
     ];
 
-    // Generator Warna Tambahan Otomatis Jika Jenis Pelanggaran Lebih dari 10 Kategori
     function generateColors(count) {
         const bgColors = [];
         const borderColors = [];
@@ -187,6 +186,44 @@
     }
 
     document.getElementById('tanggal').value = new Date().toISOString().split('T')[0];
+
+    // FUNGSI PENGELOMPOKAN KATA MIRIP UNTUK GRAFIK
+    function normalisasiPelanggaran(teks) {
+        if (!teks) return 'Lainnya';
+        const str = teks.toLowerCase().trim();
+
+        // 1. Merokok / Vape
+        if (str.includes('rokok') || str.includes('vape') || str.includes('pod') || str.includes('udud')) {
+            return 'Merokok / Vape';
+        }
+        // 2. Keterlambatan
+        if (str.includes('lambat') || str.includes('late') || str.includes('kesiangan') || str.includes('telat')) {
+            return 'Terlambat';
+        }
+        // 3. Atribut / Seragam / Baju
+        if (str.includes('baju') || str.includes('seragam') || str.includes('sepatu') || str.includes('kaos kaki') || str.includes('dasi') || str.includes('sabuk') || str.includes('atribut')) {
+            return 'Seragam / Atribut';
+        }
+        // 4. HP / Handphone / Gadget
+        if (str.includes('hp') || str.includes('handphone') || str.includes('telepon') || str.includes('game') || str.includes('gadget')) {
+            return 'Penggunaan HP';
+        }
+        // 5. Bolos / Cabut
+        if (str.includes('bolos') || str.includes('cabut') || str.includes('kabur') || str.includes('alpa')) {
+            return 'Membolos';
+        }
+        // 6. Rambut / Make Up / Perhiasan
+        if (str.includes('rambut') || str.includes('gondrong') || str.includes('cat') || str.includes('makeup') || str.includes('make up') || str.includes('zipper')) {
+            return 'Rambut / Penampilan';
+        }
+        // 7. Perkelahian / Pukulan / Pertengkaran
+        if (str.includes('berkelahi') || str.includes('pukul') || str.includes('tengkar') || str.includes('berantem') || str.includes('tauran')) {
+            return 'Perkelahian / Bullying';
+        }
+
+        // Jika tidak masuk aturan mana pun, kembalikan huruf besar di awal (Title Case)
+        return teks.charAt(0).toUpperCase() + teks.slice(1);
+    }
 
     // FUNGSI KOMPRESI GAMBAR OTOMATIS
     function compressImage(file, maxWidth = 800, quality = 0.7) {
@@ -272,13 +309,14 @@
         });
     }
 
-    // MEMPERBARUI CHART WARNA BEDA-BEDA UNTUK SETIAP KASUS
+    // UPDATE CHART DENGAN PENGELOMPOKAN KATA MIRIP
     function updateChart(dataToRender) {
         const counts = {};
         
         dataToRender.forEach(item => {
-            const jenis = (item.pelanggaran || 'Lainnya').trim();
-            counts[jenis] = (counts[jenis] || 0) + 1;
+            // Gunakan fungsi normalisasi untuk menyatukan kata yang mirip
+            const jenisKategori = normalisasiPelanggaran(item.pelanggaran);
+            counts[jenisKategori] = (counts[jenisKategori] || 0) + 1;
         });
 
         const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
@@ -335,7 +373,8 @@
         const filtered = records.filter(item => {
             const nama = (item.nama || '').toLowerCase();
             const kelas = (item.kelas || '').toLowerCase();
-            return nama.includes(keyword) || kelas.includes(keyword);
+            const pelanggaran = (item.pelanggaran || '').toLowerCase();
+            return nama.includes(keyword) || kelas.includes(keyword) || pelanggaran.includes(keyword);
         });
         renderTable(filtered);
     }
@@ -369,7 +408,6 @@
 
             try {
                 const fileDikompres = await compressImage(fotoInput, 800, 0.7);
-
                 const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.jpg`;
                 
                 const { data: uploadData, error: uploadError } = await _supabase.storage
@@ -454,13 +492,10 @@
     async function hapusData(id) {
         if (!confirm("Apakah Anda yakin ingin menghapus data ini?")) return;
 
-        // 1. Cari data berdasarkan ID untuk mengambil URL foto
         const item = records.find(r => r.id === id);
 
-        // 2. Jika ada foto, hapus file gambar dari Supabase Storage
         if (item && item.foto_url) {
             try {
-                // Ekstrak nama file dari URL (string setelah slash terakhir)
                 const fileName = item.foto_url.split('/').pop();
 
                 if (fileName) {
@@ -477,7 +512,6 @@
             }
         }
 
-        // 3. Hapus baris data di tabel Supabase
         const { error } = await _supabase
             .from('pelanggaran')
             .delete()
