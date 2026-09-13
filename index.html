@@ -240,6 +240,7 @@
         // Header Judul Atas
         worksheet.mergeCells('A1:F1');
         worksheet.mergeCells('A2:F2');
+        worksheet.mergeCells('A3:F3');
         
         const title1 = worksheet.getCell('A1');
         title1.value = "REKAPITULASI PELANGGARAN SISWA/I";
@@ -247,7 +248,12 @@
         title1.alignment = { horizontal: 'center', vertical: 'middle' };
 
         const title2 = worksheet.getCell('A2');
-        title2.value = "SMP GELORA BEKASI - TAHUN AJARAN 2026/2027";
+        title2.value = "SMP GELORA BEKASI";
+        title2.font = { name: 'Arial', size: 14, bold: true };
+        title2.alignment = { horizontal: 'center', vertical: 'middle' };
+
+        const title3 = worksheet.getCell('A3');
+        title2.value = "TAHUN AJARAN 2026/2027";
         title2.font = { name: 'Arial', size: 11, italic: true, bold: true };
         title2.alignment = { horizontal: 'center', vertical: 'middle' };
 
