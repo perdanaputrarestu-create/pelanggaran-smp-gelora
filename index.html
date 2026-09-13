@@ -28,6 +28,43 @@
         th, td { border: 1px solid #ddd; padding: 8px; text-align: center; vertical-align: middle; }
         th { background-color: #2f5597; color: white; }
         img.thumb { width: 50px; height: 50px; object-fit: cover; }
+
+        /* Pastikan container memiliki posisi relative */
+.container { 
+    max-width: 900px; 
+    margin: auto; 
+    background: white; 
+    padding: 20px; 
+    border-radius: 8px; 
+    box-shadow: 0 0 10px rgba(0,0,0,0.1); 
+    position: relative; /* Wajib ada */
+    overflow: hidden;    /* Mencegah logo keluar dari card */
+}
+
+/* Watermark Berbayang / Transparan */
+.container::before {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 350px;                   /* Ukuran lebar watermark */
+    height: 350px;                  /* Ukuran tinggi watermark */
+    background-image: url('https://thumb.wikimedia.org/wikipedia/commons/thumb/9/9c/Logo_of_Ministry_of_Education_and_Culture_of_Republic_of_Indonesia.svg/960px-Logo_of_Ministry_of_Education_and_Culture_of_Republic_of_Indonesia.svg.png?utm_source=id.wikipedia.org&utm_campaign=index&utm_content=thumbnail'); /* Ganti dengan link logo Anda */
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: contain;
+    opacity: 0.08;                  /* Tingkat transparansi (0.05 - 0.15 cocok untuk watermark) */
+    pointer-events: none;           /* Agar tombol/form di atasnya tetap bisa diklik */
+    z-index: 0;                     /* Posisi paling belakang di dalam container */
+}
+
+/* Memastikan isi form & tabel berada di atas watermark */
+.container > * {
+    position: relative;
+    z-index: 1;
+}
+
     </style>
 </head>
 <body>
