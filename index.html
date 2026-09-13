@@ -185,7 +185,9 @@
 
     // KATA SANDI ADMIN
     const ADMIN_PASSWORD = "admin123";
-    let isAdmin = false;
+    
+    // CEK PERSISTENSI LOGIN DARI LOCALSTORAGE SEBELUM APPS MEMUAT DATA
+    let isAdmin = localStorage.getItem('is_admin_logged_in') === 'true';
 
     let records = [];
     let myChart = null;
@@ -223,16 +225,18 @@
 
     document.getElementById('tanggal').value = new Date().toISOString().split('T')[0];
 
-    // FUNGSI AUTHENTIKASI ADMIN
+    // FUNGSI AUTHENTIKASI ADMIN + DISIMPANKAN KE LOCALSTORAGE
     function toggleAdminAuth() {
         if (isAdmin) {
             isAdmin = false;
+            localStorage.removeItem('is_admin_logged_in');
             updateAdminUI();
             alert("Anda telah keluar dari Mode Admin.");
         } else {
             const password = prompt("Masukkan Kata Sandi Admin:");
             if (password === ADMIN_PASSWORD) {
                 isAdmin = true;
+                localStorage.setItem('is_admin_logged_in', 'true');
                 updateAdminUI();
                 alert("Berhasil masuk sebagai Admin!");
             } else if (password !== null) {
@@ -463,7 +467,9 @@
             return;
         }
         records = data;
-        renderTable(records);
+        
+        // Memastikan tampilan antarmuka ter-update sesuai sesi tersimpan
+        updateAdminUI();
         updateChart(records);
     }
 
