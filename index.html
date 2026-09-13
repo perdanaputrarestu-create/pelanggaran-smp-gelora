@@ -1,782 +1,952 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistem Pelanggaran Siswa - SMP Gelora Bekasi</title>
-    <!-- Supabase JS -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <!-- ExcelJS -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
-    <!-- Chart.js CDN -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <style>
-        body { font-family: Arial, sans-serif; margin: 20px; background-color: #f4f6f9; }
-        
-        .container { 
-            max-width: 900px; 
-            margin: auto; 
-            background: white; 
-            padding: 20px; 
-            border-radius: 8px; 
-            box-shadow: 0 0 10px rgba(0,0,0,0.1); 
-            position: relative; 
-            overflow: hidden;    
-        }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Sistem Pelanggaran Siswa - SMP Gelora Bekasi</title>
 
-        /* Watermark Transparan (Tetap di Tengah Layar) */
-        .container::before {
-            content: "";
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 350px;                   
-            height: 350px;                  
-            background-image: url('https://thumb.wikimedia.org/wikipedia/commons/thumb/9/9c/Logo_of_Ministry_of_Education_and_Culture_of_Republic_of_Indonesia.svg/960px-Logo_of_Ministry_of_Education_and_Culture_of_Republic_of_Indonesia.svg.png');
-            background-repeat: no-repeat;
-            background-position: center;
-            background-size: contain;
-            opacity: 0.08;                  
-            pointer-events: none;           
-            z-index: 0;                     
-        }
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-        .container > * { position: relative; z-index: 1; }
-        h2 { text-align: center; color: #1f4e78; margin-bottom: 5px; text-transform: uppercase; }
-        h3.school-name { text-align: center; color: #2f5597; margin-top: 0; margin-bottom: 5px; font-size: 18px; }
-        .sub-title { text-align: center; font-weight: bold; color: #333; margin-top: 0; margin-bottom: 20px; font-size: 14px; }
-        
-        /* Baris Header Admin Login */
-        .admin-bar {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            background: #e9ecef;
-            padding: 10px 15px;
-            border-radius: 6px;
-            margin-bottom: 20px;
-        }
-        .admin-status { font-weight: bold; font-size: 14px; }
-        .badge-admin { background-color: #28a745; color: white; padding: 3px 8px; border-radius: 4px; font-size: 12px; }
-        .badge-guest { background-color: #6c757d; color: white; padding: 3px 8px; border-radius: 4px; font-size: 12px; }
-        .btn-admin-auth { background-color: #1f4e78; color: white; padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: bold; }
-        .btn-admin-auth:hover { background-color: #153451; }
+<style>
+:root{
+    --primary:#1261a0;
+    --primary-dark:#0b4779;
+    --primary-light:#eaf4fc;
+    --success:#21a366;
+    --danger:#e53935;
+    --warning:#f5b400;
+    --text:#172033;
+    --muted:#6b7280;
+    --bg:#f3f6fa;
+    --card:#fff;
+    --border:#e5eaf0;
+    --shadow:0 5px 18px rgba(20,50,80,.08);
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+    margin:0;
+    font-family:Arial,Helvetica,sans-serif;
+    background:var(--bg);
+    color:var(--text);
+}
+button,input{font:inherit}
+button{cursor:pointer}
+.app{
+    width:min(1180px,100%);
+    min-height:100vh;
+    margin:auto;
+    background:#fff;
+}
+.topbar{
+    position:sticky;
+    top:0;
+    z-index:50;
+    height:64px;
+    background:linear-gradient(135deg,var(--primary-dark),var(--primary));
+    color:#fff;
+    display:flex;
+    align-items:center;
+    padding:0 18px;
+    box-shadow:0 3px 12px rgba(0,0,0,.15);
+}
+.logo{
+    width:38px;height:38px;border-radius:50%;
+    background:rgba(255,255,255,.15);
+    display:flex;align-items:center;justify-content:center;
+    margin-right:10px;font-size:21px;
+}
+.brand{font-size:15px;font-weight:800;flex:1}
+.menu-btn{
+    border:0;background:transparent;color:#fff;font-size:25px;
+    padding:5px 8px;
+}
+.content{padding:18px 16px 90px}
+.page{display:none}
+.page.active{display:block}
+.hero{
+    text-align:center;
+    padding:8px 4px 16px;
+}
+.hero h1{
+    margin:0;color:var(--primary-dark);
+    font-size:22px;line-height:1.2;
+}
+.hero h2{
+    margin:7px 0 3px;color:var(--primary);
+    font-size:17px;
+}
+.hero p{
+    margin:0;color:var(--muted);font-weight:700;font-size:13px;
+}
+.stats{
+    display:grid;
+    grid-template-columns:repeat(2,1fr);
+    gap:11px;
+    margin:12px 0;
+}
+.stat{
+    background:#fff;border:1px solid var(--border);
+    border-radius:13px;padding:15px;
+    box-shadow:var(--shadow);
+    min-height:92px;
+}
+.stat-icon{font-size:20px;margin-bottom:8px}
+.stat-label{font-size:12px;color:var(--muted);font-weight:700}
+.stat-value{font-size:21px;font-weight:800;margin-top:4px}
+.access-card{
+    margin:14px 0;
+    background:#fff;border:1px solid var(--border);
+    border-radius:13px;padding:13px;
+    box-shadow:var(--shadow);
+}
+.access-line{
+    display:flex;align-items:center;justify-content:space-between;
+    gap:8px;margin-bottom:10px;font-size:12px;font-weight:700;
+}
+.badge{
+    padding:6px 9px;border-radius:20px;color:#fff;font-size:11px;
+}
+.badge.guest{background:#6c757d}
+.badge.admin{background:var(--success)}
+.primary-btn,.success-btn,.excel-btn,.danger-btn,.secondary-btn{
+    width:100%;border:0;border-radius:9px;padding:12px 14px;
+    font-weight:800;color:#fff;
+}
+.primary-btn{background:var(--primary)}
+.success-btn{background:var(--success)}
+.excel-btn{background:#1677b7}
+.danger-btn{background:var(--danger)}
+.secondary-btn{background:#edf1f5;color:#344054}
+.primary-btn:active,.success-btn:active,.excel-btn:active,.danger-btn:active{transform:scale(.99)}
+.section-title{
+    font-size:17px;margin:22px 0 10px;
+}
+.card{
+    background:#fff;border:1px solid var(--border);
+    border-radius:13px;box-shadow:var(--shadow);padding:14px;
+}
+.notice{
+    background:#fff8df;border:1px solid #f1df9d;
+    color:#765b00;border-radius:10px;padding:11px;font-size:12px;
+    margin-bottom:12px;
+}
+.search{
+    position:relative;margin-bottom:12px;
+}
+.search input{
+    width:100%;border:1px solid #ccd6e0;border-radius:10px;
+    padding:12px 13px 12px 38px;outline:none;
+}
+.search span{
+    position:absolute;left:13px;top:10px;font-size:17px;color:#7b8794;
+}
+.record-list{display:grid;gap:10px}
+.record{
+    border:1px solid var(--border);border-radius:12px;padding:12px;
+    display:grid;grid-template-columns:1fr 66px;gap:10px;background:#fff;
+}
+.record-main{min-width:0}
+.record-date{font-size:11px;color:var(--muted);font-weight:700;margin-bottom:6px}
+.record-name{font-size:15px;font-weight:800;margin-bottom:5px}
+.record-meta{font-size:12px;color:#536070;line-height:1.7}
+.record-violation{
+    font-size:12px;font-weight:800;color:var(--danger);
+    margin-top:3px;
+}
+.record-photo{
+    width:66px;height:66px;object-fit:cover;border-radius:9px;
+    border:1px solid var(--border);
+}
+.actions{grid-column:1/-1;display:grid;grid-template-columns:1fr 1fr;gap:7px}
+.edit-btn,.delete-btn{
+    border:0;border-radius:8px;padding:8px;font-weight:800;font-size:12px;
+}
+.edit-btn{background:#ffd34d;color:#493900}
+.delete-btn{background:#ffe0df;color:#b42318}
+.empty{
+    text-align:center;color:#8a94a3;padding:30px 10px;
+}
+.form-grid{display:grid;gap:13px}
+.form-group label{
+    display:block;font-weight:800;font-size:13px;margin-bottom:6px;
+}
+.form-group input{
+    width:100%;padding:11px;border:1px solid #ccd6e0;
+    border-radius:9px;outline:none;background:#fff;
+}
+.form-group input:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(18,97,160,.1)}
+.file-note{font-size:11px;color:var(--muted);font-weight:normal}
+.form-actions{display:grid;gap:8px;margin-top:5px}
+.chart-card{padding:13px}
+.chart-box{height:330px;position:relative}
+.detail-photo{
+    width:100%;max-height:330px;object-fit:contain;
+    border-radius:10px;background:#f2f4f7;margin-top:10px;
+}
+.detail-row{
+    display:flex;gap:10px;padding:9px 0;border-bottom:1px solid #eef1f4;
+}
+.detail-row:last-child{border-bottom:0}
+.detail-key{width:105px;color:var(--muted);font-size:12px;font-weight:700}
+.detail-value{flex:1;font-size:13px;font-weight:700}
+.bottom-nav{
+    position:fixed;left:50%;bottom:0;transform:translateX(-50%);
+    width:min(1180px,100%);
+    height:68px;background:#fff;border-top:1px solid var(--border);
+    display:grid;grid-template-columns:repeat(4,1fr);
+    z-index:60;box-shadow:0 -4px 15px rgba(0,0,0,.08);
+}
+.nav-btn{
+    border:0;background:#fff;color:#7c8794;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    gap:3px;font-size:10px;font-weight:700;
+}
+.nav-btn span:first-child{font-size:19px}
+.nav-btn.active{color:var(--primary)}
+.modal{
+    position:fixed;inset:0;background:rgba(13,28,43,.62);
+    display:none;align-items:center;justify-content:center;
+    z-index:100;padding:18px;
+}
+.modal.show{display:flex}
+.modal-box{
+    width:min(420px,100%);background:#fff;border-radius:16px;
+    padding:20px;box-shadow:0 15px 45px rgba(0,0,0,.25);
+}
+.modal-close{
+    float:right;border:0;background:transparent;font-size:22px;color:#788;
+}
+.lock{font-size:34px;text-align:center;margin:3px}
+.modal h3{text-align:center;margin:4px 0 5px}
+.modal p{text-align:center;color:var(--muted);font-size:12px}
+.password-wrap{position:relative;margin:15px 0}
+.password-wrap input{
+    width:100%;padding:12px 40px 12px 12px;border:1px solid #ccd6e0;border-radius:9px;
+}
+.password-toggle{
+    position:absolute;right:10px;top:9px;border:0;background:transparent;font-size:18px;
+}
+.desktop-table{display:none}
+.footer-note{text-align:center;color:#98a2b3;font-size:10px;margin-top:22px}
 
-        /* Form styling saat mode view-only (Non-Admin) */
-        .form-disabled { opacity: 0.6; pointer-events: none; }
-        
-        /* Container Diagram */
-        .chart-section {
-            background: #ffffff;
-            border: 1px solid #e2e8f0;
-            border-radius: 8px;
-            padding: 15px;
-            margin-top: 30px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-        }
-        .chart-container {
-            position: relative;
-            height: 320px;
-            width: 100%;
-        }
-
-        .form-group { margin-bottom: 15px; }
-        label { display: block; font-weight: bold; margin-bottom: 5px; }
-        input, select { width: 100%; padding: 8px; box-sizing: border-box; }
-        button { padding: 10px 15px; border: none; cursor: pointer; border-radius: 4px; font-weight: bold; }
-        .btn-submit { background-color: #28a745; color: white; width: 100%; }
-        .btn-excel { background-color: #1f4e78; color: white; margin-top: 15px; margin-bottom: 15px; width: 100%; font-size: 16px; }
-        .btn-edit { background-color: #ffc107; color: black; padding: 5px 10px; margin-right: 5px; border-radius: 3px; }
-        .btn-delete { background-color: #dc3545; color: white; padding: 5px 10px; border-radius: 3px; }
-        .btn-cancel { background-color: #6c757d; color: white; display: none; margin-top: 5px; width: 100%; }
-        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-        th, td { border: 1px solid #ddd; padding: 8px; text-align: center; vertical-align: middle; }
-        th { background-color: #2f5597; color: white; }
-        img.thumb { width: 50px; height: 50px; object-fit: cover; border-radius: 4px; }
-        
-        .col-aksi { display: table-cell; }
-        .hide-col { display: none !important; }
-    </style>
+@media(min-width:700px){
+    body{padding:20px}
+    .app{border-radius:16px;overflow:hidden;box-shadow:0 8px 35px rgba(0,0,0,.1)}
+    .content{padding:24px 28px 40px}
+    .bottom-nav{position:static;transform:none;width:100%;border-top:1px solid var(--border)}
+    .stats{grid-template-columns:repeat(4,1fr)}
+    .form-grid{grid-template-columns:1fr 1fr}
+    .form-group.full{grid-column:1/-1}
+    .form-actions{grid-column:1/-1;grid-template-columns:1fr 1fr}
+    .record-list{display:none}
+    .desktop-table{display:block;overflow-x:auto}
+    table{width:100%;border-collapse:collapse}
+    th,td{border:1px solid #ddd;padding:9px;text-align:center;font-size:12px}
+    th{background:var(--primary);color:#fff}
+    td img{width:52px;height:52px;object-fit:cover;border-radius:6px}
+    .desktop-only{display:block}
+}
+@media(max-width:699px){
+    .desktop-only{display:none}
+}
+</style>
 </head>
+
 <body>
+<div class="app">
 
-<div class="container">
-    <h2>REKAPITULASI PELANGGARAN SISWA/SISWI</h2>
-    <h3 class="school-name">SMP GELORA BEKASI</h3>
-    <div class="sub-title">TAHUN AJARAN 2026-2027</div>
+<header class="topbar">
+    <div class="logo">🏫</div>
+    <div class="brand">SMP GELORA BEKASI</div>
+    <button class="menu-btn" onclick="showPage('home')">☰</button>
+</header>
 
-    <!-- Panel Pengaturan Mode Admin -->
-    <div class="admin-bar">
-        <div class="admin-status">
-            Status Akses: <span id="status-badge" class="badge-guest">Tamu (Lihat Saja)</span>
-        </div>
-        <button id="btn-auth" class="btn-admin-auth" onclick="toggleAdminAuth()">🔑 Login Admin</button>
-    </div>
-    
-    <audio id="bg-music" loop preload="none">
-        <source src="https://pdhraphbbdjsabhiokgo.supabase.co/storage/v1/object/public/Sound/Raiso%20Ngapusi%20-%20La%20Tasya%20Feat.%20Aryan%20Tekomlaku%20(HIPHOP%20DANGDUT%20VERSION).mp3" type="audio/mpeg">
-    </audio>
+<main class="content">
 
-    <input type="hidden" id="edit-id">
-
-    <div id="form-container" class="form-disabled">
-        <div class="form-group">
-            <label for="tanggal">Hari / Tanggal</label>
-            <input type="date" id="tanggal" disabled>
-        </div>
-        <div class="form-group">
-            <label for="nama">Nama Siswa</label>
-            <input type="text" id="nama" placeholder="Masukkan nama siswa" disabled>
-        </div>
-        <div class="form-group">
-            <label for="kelas">Kelas</label>
-            <input type="text" id="kelas" placeholder="Contoh: 7A" disabled>
-        </div>
-        <div class="form-group">
-            <label for="pelanggaran">Jenis Pelanggaran</label>
-            <input type="text" id="pelanggaran" placeholder="Contoh: Terlambat, Baju Dikeluarkan, Merokok" disabled>
-        </div>
-        <div class="form-group">
-            <label for="foto">Foto Bukti <small style="color: #666; font-weight: normal;">(Otomatis dikompres &lt; 200KB)</small></label>
-            <input type="file" id="foto" accept="image/*" disabled>
-        </div>
-
-        <button id="btn-save" class="btn-submit" onclick="simpanData()" disabled>Simpan Data (Hanya Admin)</button>
-        <button id="btn-cancel" class="btn-cancel" onclick="batalEdit()">Batal Edit</button>
+<!-- BERANDA -->
+<section id="page-home" class="page active">
+    <div class="hero">
+        <h1>REKAPITULASI<br>PELANGGARAN SISWA/SISWI</h1>
+        <h2>SMP GELORA BEKASI</h2>
+        <p>TAHUN AJARAN 2026-2027</p>
     </div>
 
-    <button class="btn-excel" onclick="exportToExcel()">Export ke Excel (.xlsx)</button>
-
-    <h3 style="text-align: left; margin-top: 25px;">Daftar Pelanggaran</h3>
-
-    <div class="form-group">
-        <input type="text" id="search-input" placeholder="🔍 Cari nama siswa atau kelas..." onkeyup="filterData()" style="padding: 10px; font-size: 14px; border: 2px solid #2f5597; border-radius: 5px;">
+    <div class="access-card">
+        <div class="access-line">
+            <span>Status Akses</span>
+            <span id="status-badge" class="badge guest">Tamu (Lihat Saja)</span>
+        </div>
+        <button id="btn-auth-home" class="primary-btn" onclick="toggleAdminAuth()">🔑 Login Admin</button>
     </div>
 
-    <table>
-        <thead>
-            <tr>
-                <th>No</th>
-                <th>Tanggal</th>
-                <th>Nama</th>
-                <th>Kelas</th>
-                <th>Pelanggaran</th>
-                <th>Foto</th>
-                <th id="th-aksi" class="col-aksi hide-col">Aksi</th>
-            </tr>
-        </thead>
-        <tbody id="table-body"></tbody>
-    </table>
+    <div class="stats">
+        <div class="stat"><div class="stat-icon">📋</div><div class="stat-label">Total Kasus</div><div class="stat-value" id="stat-total">0</div></div>
+        <div class="stat"><div class="stat-icon">⚠️</div><div class="stat-label">Jenis Pelanggaran</div><div class="stat-value" id="stat-types">0</div></div>
+        <div class="stat"><div class="stat-icon">👨‍🎓</div><div class="stat-label">Jumlah Siswa</div><div class="stat-value" id="stat-students">0</div></div>
+        <div class="stat"><div class="stat-icon">📅</div><div class="stat-label">Tahun Ajaran</div><div class="stat-value" style="font-size:16px">2026-2027</div></div>
+    </div>
 
-    <!-- Diagram Statistik -->
-    <div class="chart-section">
-        <h3 style="margin-top: 0; color: #1f4e78; font-size: 16px;">📊 Grafik Pelanggaran</h3>
-        <div class="chart-container">
-            <canvas id="pelanggaranChart"></canvas>
+    <button class="excel-btn" onclick="exportToExcel()">📗 Export ke Excel</button>
+
+    <h3 class="section-title">Pelanggaran Terbaru</h3>
+    <div id="recent-list" class="record-list"></div>
+</section>
+
+<!-- DATA -->
+<section id="page-data" class="page">
+    <h2 class="section-title" style="margin-top:0">📋 Daftar Pelanggaran</h2>
+    <div class="search"><span>🔍</span><input id="search-input" type="text" placeholder="Cari nama siswa atau kelas..." oninput="filterData()"></div>
+
+    <div id="record-list" class="record-list"></div>
+
+    <div class="desktop-only desktop-table">
+        <table>
+            <thead>
+                <tr>
+                    <th>No</th><th>Tanggal</th><th>Nama</th><th>Kelas</th><th>Pelanggaran</th><th>Foto</th><th id="th-aksi">Aksi</th>
+                </tr>
+            </thead>
+            <tbody id="table-body"></tbody>
+        </table>
+    </div>
+</section>
+
+<!-- TAMBAH -->
+<section id="page-form" class="page">
+    <h2 class="section-title" style="margin-top:0" id="form-title">➕ Tambah Pelanggaran</h2>
+
+    <div id="guest-notice" class="notice">🔒 Form hanya dapat digunakan oleh Admin. Silakan login terlebih dahulu.</div>
+
+    <div class="card">
+        <div class="form-grid">
+            <div class="form-group">
+                <label for="tanggal">Hari / Tanggal</label>
+                <input type="date" id="tanggal" disabled>
+            </div>
+            <div class="form-group">
+                <label for="nama">Nama Siswa</label>
+                <input type="text" id="nama" placeholder="Masukkan nama siswa" disabled>
+            </div>
+            <div class="form-group">
+                <label for="kelas">Kelas</label>
+                <input type="text" id="kelas" placeholder="Contoh: 7A" disabled>
+            </div>
+            <div class="form-group">
+                <label for="pelanggaran">Jenis Pelanggaran</label>
+                <input type="text" id="pelanggaran" placeholder="Contoh: Terlambat" disabled>
+            </div>
+            <div class="form-group full">
+                <label for="foto">Foto Bukti <span class="file-note">(otomatis dikompres)</span></label>
+                <input type="file" id="foto" accept="image/*" disabled>
+            </div>
+            <div class="form-actions">
+                <button id="btn-save" class="success-btn" onclick="simpanData()" disabled>💾 Simpan Data</button>
+                <button id="btn-cancel" class="secondary-btn" onclick="batalEdit()" style="display:none">Batal Edit</button>
+            </div>
         </div>
+    </div>
+</section>
+
+<!-- GRAFIK -->
+<section id="page-chart" class="page">
+    <h2 class="section-title" style="margin-top:0">📊 Grafik Pelanggaran</h2>
+    <div class="card chart-card">
+        <div style="font-size:12px;color:#667085;margin-bottom:10px">
+            Otomatis dikelompokkan berdasarkan kemiripan kata.
+        </div>
+        <div class="chart-box"><canvas id="pelanggaranChart"></canvas></div>
+    </div>
+</section>
+
+<!-- DETAIL -->
+<section id="page-detail" class="page">
+    <button class="secondary-btn" style="margin-bottom:12px" onclick="showPage('data')">← Kembali ke Data</button>
+    <h2 class="section-title" style="margin-top:0">Detail Data</h2>
+    <div class="card" id="detail-card"></div>
+</section>
+
+<div class="footer-note">Sistem Rekapitulasi Pelanggaran • SMP Gelora Bekasi</div>
+</main>
+
+<nav class="bottom-nav">
+    <button class="nav-btn active" data-page="home" onclick="showPage('home')"><span>🏠</span><span>Beranda</span></button>
+    <button class="nav-btn" data-page="data" onclick="showPage('data')"><span>☷</span><span>Data</span></button>
+    <button class="nav-btn" data-page="chart" onclick="showPage('chart')"><span>📊</span><span>Grafik</span></button>
+    <button class="nav-btn" data-page="form" onclick="openForm()"><span>➕</span><span>Tambah</span></button>
+</nav>
+</div>
+
+<!-- LOGIN MODAL -->
+<div id="login-modal" class="modal" onclick="if(event.target===this)closeLogin()">
+    <div class="modal-box">
+        <button class="modal-close" onclick="closeLogin()">×</button>
+        <div class="lock">🔐</div>
+        <h3>Login Admin</h3>
+        <p>Masukkan kata sandi untuk mengakses fitur admin.</p>
+        <div class="password-wrap">
+            <input id="admin-password" type="password" placeholder="Kata Sandi Admin" onkeydown="if(event.key==='Enter')loginAdmin()">
+            <button class="password-toggle" onclick="togglePassword()">👁️</button>
+        </div>
+        <button class="primary-btn" onclick="loginAdmin()">Masuk</button>
+        <button class="secondary-btn" style="margin-top:8px" onclick="closeLogin()">Batal</button>
     </div>
 </div>
 
+<audio id="bg-music" loop preload="none">
+    <source src="https://pdhraphbbdjsabhiokgo.supabase.co/storage/v1/object/public/Sound/Raiso%20Ngapusi%20-%20La%20Tasya%20Feat.%20Aryan%20Tekomlaku%20(HIPHOP%20DANGDUT%20VERSION).mp3" type="audio/mpeg">
+</audio>
+
 <script>
-    const SUPABASE_URL = "https://pdhraphbbdjsabhiokgo.supabase.co";
-    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBkaHJhcGhiYmRqc2FiaGlva2dvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkyODMxODUsImV4cCI6MjEwNDg1OTE4NX0.FesFprS6pIbuz1x2YDOw1rKdvjgirWRBt3sPrR5EhpY";
-    const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const SUPABASE_URL = "https://pdhraphbbdjsabhiokgo.supabase.co";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBkaHJhcGhiYmRqc2FiaGlva2dvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkyODMxODUsImV4cCI6MjEwNDg1OTE4NX0.FesFprS6pIbuz1x2YDOw1rKdvjgirWRBt3sPrR5EhpY";
+const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    // KATA SANDI ADMIN
-    const ADMIN_PASSWORD = "admin123";
-    
-    // CEK PERSISTENSI LOGIN DARI LOCALSTORAGE SEBELUM APPS MEMUAT DATA
-    let isAdmin = localStorage.getItem('is_admin_logged_in') === 'true';
+// CATATAN: ini masih mempertahankan sistem password dari kode asli.
+// Untuk keamanan produksi, sebaiknya nanti dipindahkan ke Supabase Auth + RLS.
+const ADMIN_PASSWORD = "admin123";
 
-    let records = [];
-    let myChart = null;
+let isAdmin = localStorage.getItem('is_admin_logged_in') === 'true';
+let records = [];
+let myChart = null;
 
-    // Palette Warna Diagram
-    const predefinedPalette = [
-        { bg: 'rgba(255, 99, 132, 0.85)', border: 'rgba(255, 99, 132, 1)' },   
-        { bg: 'rgba(54, 162, 235, 0.85)', border: 'rgba(54, 162, 235, 1)' },   
-        { bg: 'rgba(255, 206, 86, 0.85)', border: 'rgba(255, 206, 86, 1)' },   
-        { bg: 'rgba(75, 192, 192, 0.85)', border: 'rgba(75, 192, 192, 1)' },   
-        { bg: 'rgba(153, 102, 255, 0.85)', border: 'rgba(153, 102, 255, 1)' }, 
-        { bg: 'rgba(255, 159, 64, 0.85)', border: 'rgba(255, 159, 64, 1)' },   
-        { bg: 'rgba(46, 204, 113, 0.85)', border: 'rgba(46, 204, 113, 1)' },   
-        { bg: 'rgba(231, 76, 60, 0.85)', border: 'rgba(231, 76, 60, 1)' },     
-        { bg: 'rgba(155, 89, 182, 0.85)', border: 'rgba(155, 89, 182, 1)' },   
-        { bg: 'rgba(52, 152, 219, 0.85)', border: 'rgba(52, 152, 219, 1)' }    
-    ];
+document.getElementById('tanggal').value = new Date().toISOString().split('T')[0];
 
-    function generateColors(count) {
-        const bgColors = [];
-        const borderColors = [];
+function showPage(page){
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    const target = document.getElementById('page-' + page);
+    if(target) target.classList.add('active');
 
-        for (let i = 0; i < count; i++) {
-            if (i < predefinedPalette.length) {
-                bgColors.push(predefinedPalette[i].bg);
-                borderColors.push(predefinedPalette[i].border);
-            } else {
-                const hue = (i * 137.5) % 360;
-                bgColors.push(`hsla(${hue}, 75%, 60%, 0.85)`);
-                borderColors.push(`hsla(${hue}, 75%, 45%, 1)`);
-            }
-        }
-        return { bgColors, borderColors };
+    document.querySelectorAll('.nav-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.page === page);
+    });
+
+    window.scrollTo({top:0,behavior:'smooth'});
+
+    if(page === 'chart') updateChart(records);
+    if(page === 'data') renderTable(records);
+}
+
+function openForm(){
+    if(!isAdmin){
+        alert("Fitur tambah data hanya untuk Admin.");
+        openLogin();
+        return;
+    }
+    showPage('form');
+}
+
+function openLogin(){
+    document.getElementById('login-modal').classList.add('show');
+    setTimeout(()=>document.getElementById('admin-password').focus(),100);
+}
+function closeLogin(){
+    document.getElementById('login-modal').classList.remove('show');
+    document.getElementById('admin-password').value='';
+}
+function togglePassword(){
+    const el=document.getElementById('admin-password');
+    el.type=el.type==='password'?'text':'password';
+}
+function loginAdmin(){
+    const password=document.getElementById('admin-password').value;
+    if(password === ADMIN_PASSWORD){
+        isAdmin=true;
+        localStorage.setItem('is_admin_logged_in','true');
+        closeLogin();
+        updateAdminUI();
+        alert("Berhasil masuk sebagai Admin!");
+    }else{
+        alert("Kata sandi salah!");
+    }
+}
+function toggleAdminAuth(){
+    if(isAdmin){
+        isAdmin=false;
+        localStorage.removeItem('is_admin_logged_in');
+        updateAdminUI();
+        alert("Anda telah keluar dari Mode Admin.");
+    }else openLogin();
+}
+
+function updateAdminUI(){
+    const badge=document.getElementById('status-badge');
+    const auth=document.getElementById('btn-auth-home');
+    const inputs=document.querySelectorAll('#page-form input');
+    const save=document.getElementById('btn-save');
+    const notice=document.getElementById('guest-notice');
+
+    if(isAdmin){
+        badge.textContent='Admin (Akses Penuh)';
+        badge.className='badge admin';
+        auth.textContent='🔒 Logout Admin';
+        inputs.forEach(x=>x.disabled=false);
+        save.disabled=false;
+        notice.style.display='none';
+    }else{
+        badge.textContent='Tamu (Lihat Saja)';
+        badge.className='badge guest';
+        auth.textContent='🔑 Login Admin';
+        inputs.forEach(x=>x.disabled=true);
+        save.disabled=true;
+        notice.style.display='block';
+        batalEdit();
     }
 
-    document.getElementById('tanggal').value = new Date().toISOString().split('T')[0];
+    renderTable(records);
+    renderRecent();
+    updateStats();
+}
 
-    // FUNGSI AUTHENTIKASI ADMIN + DISIMPANKAN KE LOCALSTORAGE
-    function toggleAdminAuth() {
-        if (isAdmin) {
-            isAdmin = false;
-            localStorage.removeItem('is_admin_logged_in');
-            updateAdminUI();
-            alert("Anda telah keluar dari Mode Admin.");
-        } else {
-            const password = prompt("Masukkan Kata Sandi Admin:");
-            if (password === ADMIN_PASSWORD) {
-                isAdmin = true;
-                localStorage.setItem('is_admin_logged_in', 'true');
-                updateAdminUI();
-                alert("Berhasil masuk sebagai Admin!");
-            } else if (password !== null) {
-                alert("Kata sandi salah!");
-            }
+function updateStats(){
+    document.getElementById('stat-total').textContent=records.length;
+
+    const types=new Set(
+        records.map(x=>(x.pelanggaran||'').trim().toLowerCase()).filter(Boolean)
+    );
+    document.getElementById('stat-types').textContent=types.size;
+
+    const students=new Set(
+        records.map(x=>(x.nama||'').trim().toLowerCase()).filter(Boolean)
+    );
+    document.getElementById('stat-students').textContent=students.size;
+}
+
+// JARO-WINKLER
+function getSimilarity(s1,s2){
+    s1=s1.toLowerCase().trim();
+    s2=s2.toLowerCase().trim();
+    if(s1===s2)return 1;
+    const len1=s1.length,len2=s2.length;
+    if(!len1||!len2)return 0;
+    let matchDistance=Math.floor(Math.max(len1,len2)/2)-1;
+    if(matchDistance<0)matchDistance=0;
+
+    const s1Matches=new Array(len1).fill(false);
+    const s2Matches=new Array(len2).fill(false);
+    let matches=0,transpositions=0;
+
+    for(let i=0;i<len1;i++){
+        const start=Math.max(0,i-matchDistance);
+        const end=Math.min(i+matchDistance+1,len2);
+        for(let j=start;j<end;j++){
+            if(s2Matches[j]||s1[i]!==s2[j])continue;
+            s1Matches[i]=true;s2Matches[j]=true;matches++;break;
         }
     }
+    if(!matches)return 0;
 
-    function updateAdminUI() {
-        const statusBadge = document.getElementById('status-badge');
-        const btnAuth = document.getElementById('btn-auth');
-        const formContainer = document.getElementById('form-container');
-        const inputs = formContainer.querySelectorAll('input, button');
-        const thAksi = document.getElementById('th-aksi');
-
-        if (isAdmin) {
-            statusBadge.innerText = "Admin (Akses Penuh)";
-            statusBadge.className = "badge-admin";
-            btnAuth.innerText = "🔒 Logout Admin";
-            
-            formContainer.classList.remove('form-disabled');
-            inputs.forEach(el => el.disabled = false);
-            document.getElementById('btn-save').innerText = "Simpan Data";
-            thAksi.classList.remove('hide-col');
-        } else {
-            statusBadge.innerText = "Tamu (Lihat Saja)";
-            statusBadge.className = "badge-guest";
-            btnAuth.innerText = "🔑 Login Admin";
-            
-            formContainer.classList.add('form-disabled');
-            inputs.forEach(el => el.disabled = true);
-            document.getElementById('btn-save').innerText = "Simpan Data (Hanya Admin)";
-            thAksi.classList.add('hide-col');
-            batalEdit();
-        }
-
-        renderTable(records);
+    let k=0;
+    for(let i=0;i<len1;i++){
+        if(!s1Matches[i])continue;
+        while(!s2Matches[k])k++;
+        if(s1[i]!==s2[k])transpositions++;
+        k++;
     }
 
-    // =========================================================================
-    // ALGORITMA FUZZY MATCHING (JARO-WINKLER SIMILARITY)
-    // =========================================================================
-    function getSimilarity(s1, s2) {
-        s1 = s1.toLowerCase().trim();
-        s2 = s2.toLowerCase().trim();
+    const jaro=(matches/len1+matches/len2+(matches-transpositions/2)/matches)/3;
+    let prefix=0;
+    for(let i=0;i<Math.min(4,len1,len2);i++){
+        if(s1[i]===s2[i])prefix++;else break;
+    }
+    return jaro+prefix*.1*(1-jaro);
+}
 
-        if (s1 === s2) return 1.0;
+function getGroups(data){
+    const groups={};
+    const threshold=.70;
 
-        let len1 = s1.length, len2 = s2.length;
-        if (len1 === 0 || len2 === 0) return 0.0;
+    data.forEach(item=>{
+        const raw=(item.pelanggaran||'').trim();
+        if(!raw)return;
+        const formatted=raw.charAt(0).toUpperCase()+raw.slice(1);
+        let found=false;
 
-        let matchDistance = Math.floor(Math.max(len1, len2) / 2) - 1;
-        if (matchDistance < 0) matchDistance = 0;
-
-        let s1Matches = new Array(len1).fill(false);
-        let s2Matches = new Array(len2).fill(false);
-        let matches = 0;
-        let transpositions = 0;
-
-        for (let i = 0; i < len1; i++) {
-            let start = Math.max(0, i - matchDistance);
-            let end = Math.min(i + matchDistance + 1, len2);
-
-            for (let j = start; j < end; j++) {
-                if (s2Matches[j]) continue;
-                if (s1[i] !== s2[j]) continue;
-                s1Matches[i] = true;
-                s2Matches[j] = true;
-                matches++;
+        for(const groupName in groups){
+            const score=getSimilarity(formatted,groupName);
+            const fw1=formatted.split(' ')[0];
+            const fw2=groupName.split(' ')[0];
+            const firstScore=getSimilarity(fw1,fw2);
+            if(score>=threshold||firstScore>=.85){
+                groups[groupName]++;
+                found=true;
                 break;
             }
         }
+        if(!found)groups[formatted]=1;
+    });
+    return Object.entries(groups).sort((a,b)=>b[1]-a[1]);
+}
 
-        if (matches === 0) return 0.0;
+function updateChart(data){
+    const sorted=getGroups(data);
+    const labels=sorted.map(x=>x[0]);
+    const values=sorted.map(x=>x[1]);
 
-        let k = 0;
-        for (let i = 0; i < len1; i++) {
-            if (!s1Matches[i]) continue;
-            while (!s2Matches[k]) k++;
-            if (s1[i] !== s2[k]) transpositions++;
-            k++;
+    const ctx=document.getElementById('pelanggaranChart');
+    if(!ctx)return;
+    if(myChart)myChart.destroy();
+
+    myChart=new Chart(ctx,{
+        type:'bar',
+        data:{
+            labels:labels.length?labels:['Belum Ada Data'],
+            datasets:[{
+                label:'Jumlah Kasus',
+                data:values.length?values:[0],
+                backgroundColor:[
+                    'rgba(255,99,132,.82)','rgba(54,162,235,.82)',
+                    'rgba(255,206,86,.82)','rgba(75,192,192,.82)',
+                    'rgba(153,102,255,.82)','rgba(255,159,64,.82)',
+                    'rgba(46,204,113,.82)','rgba(231,76,60,.82)'
+                ],
+                borderWidth:1.5,
+                borderRadius:6
+            }]
+        },
+        options:{
+            responsive:true,maintainAspectRatio:false,
+            plugins:{legend:{display:false}},
+            scales:{
+                y:{beginAtZero:true,ticks:{stepSize:1,precision:0}},
+                x:{ticks:{autoSkip:false,maxRotation:45,minRotation:0}}
+            }
         }
+    });
+}
 
-        let jaro = (matches / len1 + matches / len2 + (matches - transpositions / 2) / matches) / 3;
+function renderRecent(){
+    const box=document.getElementById('recent-list');
+    if(!box)return;
+    const latest=[...records].slice(-4).reverse();
 
-        // Extension Prefix Winkler
-        let prefix = 0;
-        let maxPrefix = 4;
-        for (let i = 0; i < Math.min(maxPrefix, Math.min(len1, len2)); i++) {
-            if (s1[i] === s2[i]) prefix++;
-            else break;
-        }
+    if(!latest.length){
+        box.innerHTML='<div class="empty">Belum ada data pelanggaran.</div>';
+        return;
+    }
+    box.innerHTML=latest.map(item=>recordCard(item)).join('');
+}
 
-        return jaro + prefix * 0.1 * (1 - jaro);
+function recordCard(item){
+    const photo=item.foto_url
+        ? `<a href="${escapeAttr(item.foto_url)}" target="_blank"><img class="record-photo" src="${escapeAttr(item.foto_url)}"></a>`
+        : `<div class="record-photo" style="display:flex;align-items:center;justify-content:center;background:#f1f3f5">📷</div>`;
+
+    const actions=isAdmin?`
+        <div class="actions">
+            <button class="edit-btn" onclick="editData(${item.id})">✏️ Edit</button>
+            <button class="delete-btn" onclick="hapusData(${item.id})">🗑 Hapus</button>
+        </div>`:'';
+
+    return `<div class="record">
+        <div class="record-main">
+            <div class="record-date">📅 ${escapeHtml(item.tanggal||'-')}</div>
+            <div class="record-name">${escapeHtml(item.nama||'-')}</div>
+            <div class="record-meta">🏫 Kelas ${escapeHtml(item.kelas||'-')}</div>
+            <div class="record-violation">⚠️ ${escapeHtml(item.pelanggaran||'-')}</div>
+        </div>
+        ${photo}
+        ${actions}
+    </div>`;
+}
+
+function renderTable(data=records){
+    const mobile=document.getElementById('record-list');
+    if(mobile){
+        mobile.innerHTML=data.length?data.map(recordCard).join(''):'<div class="empty">Data tidak ditemukan.</div>';
     }
 
-    // UPDATE GRAFIK DENGAN PENGELOMPOKAN KATA MIRIP
-    function updateChart(dataToRender) {
-        const groups = {}; 
-        const SIMILARITY_THRESHOLD = 0.70; // Sensitivitas kemiripan (70%)
+    const tbody=document.getElementById('table-body');
+    if(!tbody)return;
+    tbody.innerHTML='';
 
-        dataToRender.forEach(item => {
-            let teksRaw = item.pelanggaran ? item.pelanggaran.trim() : '';
-            if (!teksRaw) return;
-
-            let teksFormatted = teksRaw.charAt(0).toUpperCase() + teksRaw.slice(1);
-            let matchFound = false;
-
-            // Cari kelompok kata yang mirip
-            for (let groupName in groups) {
-                let score = getSimilarity(teksFormatted, groupName);
-                
-                let firstWordInput = teksFormatted.split(' ')[0];
-                let firstWordGroup = groupName.split(' ')[0];
-                let firstWordScore = getSimilarity(firstWordInput, firstWordGroup);
-
-                if (score >= SIMILARITY_THRESHOLD || firstWordScore >= 0.85) {
-                    groups[groupName] += 1;
-                    matchFound = true;
-                    break;
-                }
-            }
-
-            if (!matchFound) {
-                groups[teksFormatted] = 1;
-            }
-        });
-
-        const sorted = Object.entries(groups).sort((a, b) => b[1] - a[1]);
-
-        const labels = sorted.map(item => item[0]);
-        const values = sorted.map(item => item[1]);
-
-        const { bgColors, borderColors } = generateColors(labels.length);
-
-        const ctx = document.getElementById('pelanggaranChart').getContext('2d');
-
-        if (myChart) {
-            myChart.destroy();
-        }
-
-        myChart = new Chart(ctx, {
-            type: 'bar',
-            data: {
-                labels: labels.length ? labels : ['Belum Ada Data'],
-                datasets: [{
-                    label: 'Jumlah Kasus',
-                    data: values.length ? values : [0],
-                    backgroundColor: bgColors,
-                    borderColor: borderColors,
-                    borderWidth: 1.5,
-                    borderRadius: 5
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: { display: false }
-                },
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        ticks: { stepSize: 1, precision: 0 }
-                    },
-                    x: {
-                        ticks: {
-                            autoSkip: false,
-                            maxRotation: 45,
-                            minRotation: 0
-                        }
-                    }
-                }
-            }
-        });
+    if(!data.length){
+        tbody.innerHTML='<tr><td colspan="7">Data tidak ditemukan</td></tr>';
+        return;
     }
 
-    // FUNGSI KOMPRESI GAMBAR OTOMATIS
-    function compressImage(file, maxWidth = 800, quality = 0.7) {
-        return new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.readAsDataURL(file);
-            reader.onload = (event) => {
-                const img = new Image();
-                img.src = event.target.result;
-                img.onload = () => {
-                    let width = img.width;
-                    let height = img.height;
+    data.forEach((item,index)=>{
+        const tr=document.createElement('tr');
+        tr.innerHTML=`
+            <td>${index+1}</td>
+            <td>${escapeHtml(item.tanggal||'-')}</td>
+            <td>${escapeHtml(item.nama||'-')}</td>
+            <td>${escapeHtml(item.kelas||'-')}</td>
+            <td>${escapeHtml(item.pelanggaran||'-')}</td>
+            <td>${item.foto_url?`<a href="${escapeAttr(item.foto_url)}" target="_blank"><img src="${escapeAttr(item.foto_url)}"></a>`:'-'}</td>
+            <td>${isAdmin?`<button class="edit-btn" onclick="editData(${item.id})">Edit</button><button class="delete-btn" onclick="hapusData(${item.id})">Hapus</button>`:'-'}</td>
+        `;
+        tbody.appendChild(tr);
+    });
+}
 
-                    if (width > maxWidth) {
-                        height = Math.round((height * maxWidth) / width);
-                        width = maxWidth;
-                    }
+function filterData(){
+    const keyword=document.getElementById('search-input').value.toLowerCase().trim();
+    const filtered=records.filter(item=>
+        (item.nama||'').toLowerCase().includes(keyword) ||
+        (item.kelas||'').toLowerCase().includes(keyword) ||
+        (item.pelanggaran||'').toLowerCase().includes(keyword)
+    );
+    renderTable(filtered);
+}
 
-                    const canvas = document.createElement('canvas');
-                    canvas.width = width;
-                    canvas.height = height;
+function escapeHtml(value){
+    return String(value).replace(/[&<>"']/g,m=>({
+        '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'
+    }[m]));
+}
+function escapeAttr(value){return escapeHtml(value);}
 
-                    const ctx = canvas.getContext('2d');
-                    ctx.drawImage(img, 0, 0, width, height);
-
-                    canvas.toBlob((blob) => {
-                        if (blob) {
-                            const compressedFile = new File([blob], file.name.replace(/\.[^/.]+$/, "") + ".jpg", {
-                                type: 'image/jpeg',
-                                lastModified: Date.now()
-                            });
-                            resolve(compressedFile);
-                        } else {
-                            reject(new Error("Gagal mengompres gambar"));
-                        }
-                    }, 'image/jpeg', quality);
-                };
-                img.onerror = (err) => reject(err);
+function compressImage(file,maxWidth=800,quality=.7){
+    return new Promise((resolve,reject)=>{
+        const reader=new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload=e=>{
+            const img=new Image();
+            img.src=e.target.result;
+            img.onload=()=>{
+                let width=img.width,height=img.height;
+                if(width>maxWidth){
+                    height=Math.round(height*maxWidth/width);
+                    width=maxWidth;
+                }
+                const canvas=document.createElement('canvas');
+                canvas.width=width;canvas.height=height;
+                canvas.getContext('2d').drawImage(img,0,0,width,height);
+                canvas.toBlob(blob=>{
+                    if(!blob)return reject(new Error('Gagal mengompres gambar'));
+                    resolve(new File([blob],file.name.replace(/\.[^/.]+$/,'')+'.jpg',{
+                        type:'image/jpeg',lastModified:Date.now()
+                    }));
+                },'image/jpeg',quality);
             };
-            reader.onerror = (err) => reject(err);
-        });
-    }
+            img.onerror=reject;
+        };
+        reader.onerror=reject;
+    });
+}
 
-    async function loadData() {
-        const { data, error } = await _supabase
-            .from('pelanggaran')
-            .select('*')
-            .order('id', { ascending: true });
+async function loadData(){
+    const {data,error}=await _supabase
+        .from('pelanggaran')
+        .select('*')
+        .order('id',{ascending:true});
 
-        if (error) {
-            console.error("Gagal mengambil data:", error);
-            return;
-        }
-        records = data;
-        
-        // Memastikan tampilan antarmuka ter-update sesuai sesi tersimpan
-        updateAdminUI();
-        updateChart(records);
-    }
-
-    function renderTable(dataToRender = records) {
-        const tbody = document.getElementById('table-body');
-        tbody.innerHTML = '';
-
-        const totalCols = isAdmin ? 7 : 6;
-
-        if (!dataToRender || dataToRender.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="${totalCols}" style="text-align:center; color: #888;">Data tidak ditemukan</td></tr>`;
-            return;
-        }
-
-        dataToRender.forEach((item, index) => {
-            const tr = document.createElement('tr');
-            
-            let aksiTd = '';
-            if (isAdmin) {
-                aksiTd = `
-                    <td class="col-aksi">
-                        <button class="btn-edit" onclick="editData(${item.id})">Edit</button>
-                        <button class="btn-delete" onclick="hapusData(${item.id})">Hapus</button>
-                    </td>
-                `;
-            }
-
-            tr.innerHTML = `
-                <td>${index + 1}</td>
-                <td>${item.tanggal || '-'}</td>
-                <td>${item.nama || '-'}</td>
-                <td>${item.kelas || '-'}</td>
-                <td>${item.pelanggaran || '-'}</td>
-                <td>${item.foto_url ? `<a href="${item.foto_url}" target="_blank"><img src="${item.foto_url}" class="thumb"></a>` : '-'}</td>
-                ${aksiTd}
-            `;
-            tbody.appendChild(tr);
-        });
-    }
-
-    function filterData() {
-        const keyword = document.getElementById('search-input').value.toLowerCase().trim();
-        const filtered = records.filter(item => {
-            const nama = (item.nama || '').toLowerCase();
-            const kelas = (item.kelas || '').toLowerCase();
-            const pelanggaran = (item.pelanggaran || '').toLowerCase();
-            return nama.includes(keyword) || kelas.includes(keyword) || pelanggaran.includes(keyword);
-        });
-        renderTable(filtered);
-    }
-
-    function playAudioOnInteraction() {
-        const audio = document.getElementById('bg-music');
-        audio.volume = 0.2;
-        audio.play().catch(e => console.log("Autoplay ditahan browser:", e));
-        document.removeEventListener('click', playAudioOnInteraction);
-    }
-    document.addEventListener('click', playAudioOnInteraction);
-
-    async function simpanData() {
-        if (!isAdmin) return alert("Akses Ditolak: Hanya Admin yang bisa menyimpan data!");
-
-        const editId = document.getElementById('edit-id').value;
-        const tanggal = document.getElementById('tanggal').value;
-        const nama = document.getElementById('nama').value.trim();
-        const kelas = document.getElementById('kelas').value.trim();
-        const pelanggaran = document.getElementById('pelanggaran').value.trim();
-        const fotoInput = document.getElementById('foto').files[0];
-
-        if (!nama || !kelas || !pelanggaran) {
-            return alert("Nama, Kelas, dan Pelanggaran wajib diisi!");
-        }
-
-        let fotoUrl = null;
-
-        if (fotoInput) {
-            const btnSave = document.getElementById('btn-save');
-            btnSave.innerText = "Mengompres & Mengunggah Foto...";
-            btnSave.disabled = true;
-
-            try {
-                const fileDikompres = await compressImage(fotoInput, 800, 0.7);
-                const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.jpg`;
-                
-                const { data: uploadData, error: uploadError } = await _supabase.storage
-                    .from('foto-pelanggaran')
-                    .upload(fileName, fileDikompres);
-
-                if (uploadError) {
-                    btnSave.disabled = false;
-                    btnSave.innerText = editId ? "Update Data" : "Simpan Data";
-                    return alert("Gagal mengupload foto: " + uploadError.message);
-                }
-
-                const { data: publicUrlData } = _supabase.storage
-                    .from('foto-pelanggaran')
-                    .getPublicUrl(fileName);
-
-                fotoUrl = publicUrlData.publicUrl;
-            } catch (err) {
-                console.error(err);
-                alert("Gagal memproses kompresi foto.");
-                btnSave.disabled = false;
-                btnSave.innerText = editId ? "Update Data" : "Simpan Data";
-                return;
-            }
-        }
-
-        if (editId) {
-            const updatePayload = { tanggal, nama, kelas, pelanggaran };
-            if (fotoUrl) updatePayload.foto_url = fotoUrl;
-
-            const { error } = await _supabase
-                .from('pelanggaran')
-                .update(updatePayload)
-                .eq('id', editId);
-
-            if (error) alert("Gagal memperbarui data: " + error.message);
-            else alert("Data berhasil diperbarui!");
+    if(error){
+        console.error("Supabase error:", error);
+        if ((error.message || "").toLowerCase().includes("invalid api key")) {
+            alert("API KEY SUPABASE DITOLAK. Key pada file sudah diisi, tetapi key tersebut kemungkinan sudah dicabut/diganti di project Supabase. Ambil key terbaru dari Supabase Dashboard lalu ganti SUPABASE_KEY.");
         } else {
-            const { error } = await _supabase
-                .from('pelanggaran')
-                .insert([{ tanggal, nama, kelas, pelanggaran, foto_url: fotoUrl }]);
+            alert('Gagal mengambil data: '+error.message);
+        }
+        return;
+    }
+    records=data||[];
+    updateAdminUI();
+    updateChart(records);
+}
 
-            if (error) alert("Gagal menyimpan data: " + error.message);
-            else alert("Data berhasil disimpan!");
+async function simpanData(){
+    if(!isAdmin)return alert('Akses Ditolak: hanya Admin.');
+
+    const editId=document.getElementById('edit-id')?.value||'';
+    const tanggal=document.getElementById('tanggal').value;
+    const nama=document.getElementById('nama').value.trim();
+    const kelas=document.getElementById('kelas').value.trim();
+    const pelanggaran=document.getElementById('pelanggaran').value.trim();
+    const fotoInput=document.getElementById('foto').files[0];
+    const btn=document.getElementById('btn-save');
+
+    if(!nama||!kelas||!pelanggaran){
+        return alert('Nama, Kelas, dan Pelanggaran wajib diisi!');
+    }
+
+    btn.disabled=true;
+    btn.textContent='Mengolah...';
+
+    let fotoUrl=null;
+
+    try{
+        if(fotoInput){
+            btn.textContent='Mengompres & Mengunggah Foto...';
+            const compressed=await compressImage(fotoInput,800,.7);
+            const fileName=`${Date.now()}_${Math.random().toString(36).substring(7)}.jpg`;
+
+            const {error:uploadError}=await _supabase.storage
+                .from('foto-pelanggaran')
+                .upload(fileName,compressed);
+
+            if(uploadError)throw uploadError;
+
+            const {data:publicUrlData}=_supabase.storage
+                .from('foto-pelanggaran').getPublicUrl(fileName);
+
+            fotoUrl=publicUrlData.publicUrl;
+        }
+
+        if(editId){
+            const payload={tanggal,nama,kelas,pelanggaran};
+            if(fotoUrl)payload.foto_url=fotoUrl;
+
+            const {error} = await _supabase.from('pelanggaran')
+                .update(payload).eq('id',editId);
+            if(error)throw error;
+            alert('Data berhasil diperbarui!');
+        }else{
+            const {error}=await _supabase.from('pelanggaran').insert([{
+                tanggal,nama,kelas,pelanggaran,foto_url:fotoUrl
+            }]);
+            if(error)throw error;
+            alert('Data berhasil disimpan!');
         }
 
         batalEdit();
-        loadData();
+        await loadData();
+        showPage('data');
+    }catch(err){
+        console.error(err);
+        alert('Gagal menyimpan data: '+err.message);
+    }finally{
+        btn.disabled=!isAdmin;
+        btn.textContent='💾 Simpan Data';
     }
+}
 
-    function editData(id) {
-        if (!isAdmin) return alert("Akses Ditolak!");
+function editData(id){
+    if(!isAdmin)return alert('Akses Ditolak!');
+    const item=records.find(r=>r.id===id);
+    if(!item)return;
 
-        const item = records.find(r => r.id === id);
-        if (!item) return;
+    document.getElementById('edit-id').value=item.id;
+    document.getElementById('tanggal').value=item.tanggal||'';
+    document.getElementById('nama').value=item.nama||'';
+    document.getElementById('kelas').value=item.kelas||'';
+    document.getElementById('pelanggaran').value=item.pelanggaran||'';
+    document.getElementById('foto').value='';
+    document.getElementById('form-title').textContent='✏️ Edit Pelanggaran';
+    document.getElementById('btn-save').textContent='🔄 Update Data';
+    document.getElementById('btn-cancel').style.display='block';
+    showPage('form');
+}
 
-        document.getElementById('edit-id').value = item.id;
-        document.getElementById('tanggal').value = item.tanggal;
-        document.getElementById('nama').value = item.nama;
-        document.getElementById('kelas').value = item.kelas;
-        document.getElementById('pelanggaran').value = item.pelanggaran;
+function batalEdit(){
+    const edit=document.getElementById('edit-id');
+    if(edit)edit.value='';
+    document.getElementById('tanggal').value=new Date().toISOString().split('T')[0];
+    document.getElementById('nama').value='';
+    document.getElementById('kelas').value='';
+    document.getElementById('pelanggaran').value='';
+    document.getElementById('foto').value='';
+    document.getElementById('form-title').textContent='➕ Tambah Pelanggaran';
+    document.getElementById('btn-save').textContent='💾 Simpan Data';
+    document.getElementById('btn-cancel').style.display='none';
+}
 
-        document.getElementById('btn-save').innerText = "Update Data";
-        document.getElementById('btn-cancel').style.display = "block";
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
+async function hapusData(id){
+    if(!isAdmin)return alert('Akses Ditolak!');
+    if(!confirm('Apakah Anda yakin ingin menghapus data ini?'))return;
 
-    function batalEdit() {
-        const btnSave = document.getElementById('btn-save');
-        btnSave.disabled = !isAdmin;
-        btnSave.innerText = isAdmin ? "Simpan Data" : "Simpan Data (Hanya Admin)";
+    const item=records.find(r=>r.id===id);
 
-        document.getElementById('edit-id').value = '';
-        document.getElementById('tanggal').value = new Date().toISOString().split('T')[0];
-        document.getElementById('nama').value = '';
-        document.getElementById('kelas').value = '';
-        document.getElementById('pelanggaran').value = '';
-        document.getElementById('foto').value = '';
-
-        document.getElementById('btn-cancel').style.display = "none";
-    }
-
-    async function hapusData(id) {
-        if (!isAdmin) return alert("Akses Ditolak!");
-
-        if (!confirm("Apakah Anda yakin ingin menghapus data ini?")) return;
-
-        const item = records.find(r => r.id === id);
-
-        if (item && item.foto_url) {
-            try {
-                const fileName = item.foto_url.split('/').pop();
-
-                if (fileName) {
-                    const { error: storageError } = await _supabase.storage
-                        .from('foto-pelanggaran')
-                        .remove([fileName]);
-
-                    if (storageError) {
-                        console.error("Gagal menghapus foto dari Storage:", storageError.message);
-                    }
-                }
-            } catch (err) {
-                console.error("Error saat memproses penghapusan foto:", err);
+    try{
+        if(item?.foto_url){
+            const url=item.foto_url.split('/').pop();
+            if(url){
+                await _supabase.storage.from('foto-pelanggaran').remove([url]);
             }
         }
 
-        const { error } = await _supabase
-            .from('pelanggaran')
-            .delete()
-            .eq('id', id);
+        const {error}=await _supabase.from('pelanggaran').delete().eq('id',id);
+        if(error)throw error;
 
-        if (error) {
-            alert("Gagal menghapus data: " + error.message);
-        } else {
-            alert("Data dan foto berhasil dihapus!");
-            loadData();
-        }
+        alert('Data berhasil dihapus!');
+        await loadData();
+    }catch(err){
+        console.error(err);
+        alert('Gagal menghapus data: '+err.message);
     }
+}
 
-    async function exportToExcel() {
-        if (records.length === 0) return alert("Tidak ada data untuk diexport!");
+async function exportToExcel(){
+    if(!records.length)return alert('Tidak ada data untuk diexport!');
 
-        try {
-            const workbook = new ExcelJS.Workbook();
-            const worksheet = workbook.addWorksheet('Rekap Pelanggaran');
+    try{
+        const workbook=new ExcelJS.Workbook();
+        const ws=workbook.addWorksheet('Rekap Pelanggaran');
 
-            worksheet.mergeCells('A1:F1');
-            worksheet.mergeCells('A2:F2');
-            worksheet.mergeCells('A3:F3');
-            
-            const title1 = worksheet.getCell('A1');
-            title1.value = "REKAPITULASI PELANGGARAN SISWA/SISWI";
-            title1.font = { name: 'Arial', size: 14, bold: true, color: { argb: '1F4E78' } };
-            title1.alignment = { horizontal: 'center', vertical: 'middle' };
+        ws.mergeCells('A1:F1');ws.mergeCells('A2:F2');ws.mergeCells('A3:F3');
+        ws.getCell('A1').value='REKAPITULASI PELANGGARAN SISWA/SISWI';
+        ws.getCell('A2').value='SMP GELORA BEKASI';
+        ws.getCell('A3').value='TAHUN AJARAN 2026-2027';
 
-            const title2 = worksheet.getCell('A2');
-            title2.value = "SMP GELORA BEKASI";
-            title2.font = { name: 'Arial', size: 12, bold: true, color: { argb: '2F5597' } };
-            title2.alignment = { horizontal: 'center', vertical: 'middle' };
+        ['A1','A2','A3'].forEach((cell,i)=>{
+            ws.getCell(cell).font={name:'Arial',size:i===0?14:i===1?12:11,bold:true};
+            ws.getCell(cell).alignment={horizontal:'center',vertical:'middle'};
+        });
 
-            const title3 = worksheet.getCell('A3');
-            title3.value = "TAHUN AJARAN 2026-2027";
-            title3.font = { name: 'Arial', size: 11, italic: true, bold: true };
-            title3.alignment = { horizontal: 'center', vertical: 'middle' };
+        ws.addRow([]);
+        const header=ws.addRow(['No','Hari / Tanggal','Nama Siswa','Kelas','Jenis Pelanggaran','Foto']);
+        header.eachCell(cell=>{
+            cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'2F5597'}};
+            cell.font={bold:true,color:{argb:'FFFFFF'}};
+            cell.alignment={horizontal:'center',vertical:'middle'};
+            cell.border={top:{style:'thin'},left:{style:'thin'},bottom:{style:'thin'},right:{style:'thin'}};
+        });
 
-            worksheet.addRow([]);
+        [8,18,28,12,32,20].forEach((w,i)=>ws.getColumn(i+1).width=w);
 
-            const headers = ["No", "Hari / Tanggal", "Nama Siswa", "Kelas", "Jenis Pelanggaran", "Foto"];
-            const headerRow = worksheet.addRow(headers);
-            
-            headerRow.eachCell((cell) => {
-                cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: '2F5597' } };
-                cell.font = { name: 'Arial', size: 11, bold: true, color: { argb: 'FFFFFF' } };
-                cell.alignment = { horizontal: 'center', vertical: 'middle' };
-                cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
+        for(let i=0;i<records.length;i++){
+            const item=records[i];
+            const row=ws.addRow([
+                i+1,item.tanggal||'-',item.nama||'-',item.kelas||'-',
+                item.pelanggaran||'-',''
+            ]);
+            row.height=65;
+            row.eachCell({includeEmpty:true},cell=>{
+                cell.alignment={vertical:'middle',horizontal:'center',wrapText:true};
+                cell.border={top:{style:'thin'},left:{style:'thin'},bottom:{style:'thin'},right:{style:'thin'}};
             });
 
-            worksheet.getColumn(1).width = 8;
-            worksheet.getColumn(2).width = 18;
-            worksheet.getColumn(3).width = 28;
-            worksheet.getColumn(4).width = 12;
-            worksheet.getColumn(5).width = 32;
-            worksheet.getColumn(6).width = 20;
-
-            for (let i = 0; i < records.length; i++) {
-                const item = records[i];
-                const row = worksheet.addRow([
-                    i + 1,
-                    item.tanggal || "-",
-                    item.nama || "-",
-                    item.kelas || "-",
-                    item.pelanggaran || "-",
-                    ""
-                ]);
-
-                row.height = 65;
-
-                row.eachCell({ includeEmpty: true }, (cell) => {
-                    cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
-                    cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
-                });
-
-                if (item.foto_url) {
-                    try {
-                        const response = await fetch(item.foto_url);
-                        const arrayBuffer = await response.arrayBuffer();
-                        
-                        let ext = 'png';
-                        if (item.foto_url.includes('.jpg') || item.foto_url.includes('.jpeg')) ext = 'jpeg';
-                        else if (item.foto_url.includes('.webp')) ext = 'webp';
-
-                        const imageId = workbook.addImage({
-                            buffer: arrayBuffer,
-                            extension: ext,
-                        });
-
-                        worksheet.addImage(imageId, {
-                            tl: { col: 5.2, row: row.number - 0.9 },
-                            ext: { width: 60, height: 60 },
-                            editAs: 'oneCell'
-                        });
-                    } catch (e) {
-                        console.error("Gagal memuat gambar ke Excel:", e);
-                    }
-                }
+            if(item.foto_url){
+                try{
+                    const response=await fetch(item.foto_url);
+                    const arrayBuffer=await response.arrayBuffer();
+                    const imageId=workbook.addImage({buffer:arrayBuffer,extension:'jpeg'});
+                    ws.addImage(imageId,{
+                        tl:{col:5.2,row:row.number-.9},
+                        ext:{width:60,height:60},
+                        editAs:'oneCell'
+                    });
+                }catch(e){console.warn('Foto gagal dimasukkan:',e)}
             }
-
-            const buffer = await workbook.xlsx.writeBuffer();
-            const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
-            const link = document.createElement("a");
-            link.href = URL.createObjectURL(blob);
-            link.download = `Rekap_Pelanggaran_Siswa_${new Date().toISOString().slice(0,10)}.xlsx`;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            URL.revokeObjectURL(link.href);
-
-        } catch (err) {
-            alert("Terjadi kesalahan saat memproses Excel: " + err.message);
-            console.error(err);
         }
-    }
 
-    loadData();
+        const buffer=await workbook.xlsx.writeBuffer();
+        const blob=new Blob([buffer],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+        const url=URL.createObjectURL(blob);
+        const link=document.createElement('a');
+        link.href=url;
+        link.download=`Rekap_Pelanggaran_Siswa_${new Date().toISOString().slice(0,10)}.xlsx`;
+        link.click();
+        URL.revokeObjectURL(url);
+    }catch(err){
+        console.error(err);
+        alert('Terjadi kesalahan saat export: '+err.message);
+    }
+}
+
+// Musik mulai setelah interaksi pertama.
+function playAudioOnInteraction(){
+    const audio=document.getElementById('bg-music');
+    audio.volume=.2;
+    audio.play().catch(()=>{});
+    document.removeEventListener('click',playAudioOnInteraction);
+}
+document.addEventListener('click',playAudioOnInteraction);
+
+loadData();
 </script>
 </body>
 </html>
