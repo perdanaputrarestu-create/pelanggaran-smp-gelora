@@ -47,6 +47,25 @@
         h3.school-name { text-align: center; color: #2f5597; margin-top: 0; margin-bottom: 5px; font-size: 18px; }
         .sub-title { text-align: center; font-weight: bold; color: #333; margin-top: 0; margin-bottom: 20px; font-size: 14px; }
         
+        /* Baris Header Admin Login */
+        .admin-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #e9ecef;
+            padding: 10px 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+        }
+        .admin-status { font-weight: bold; font-size: 14px; }
+        .badge-admin { background-color: #28a745; color: white; padding: 3px 8px; border-radius: 4px; font-size: 12px; }
+        .badge-guest { background-color: #6c757d; color: white; padding: 3px 8px; border-radius: 4px; font-size: 12px; }
+        .btn-admin-auth { background-color: #1f4e78; color: white; padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: bold; }
+        .btn-admin-auth:hover { background-color: #153451; }
+
+        /* Form styling saat mode view-only */
+        .form-disabled { opacity: 0.6; pointer-events: none; }
+        
         /* Container Diagram */
         .chart-section {
             background: #ffffff;
@@ -75,6 +94,9 @@
         th, td { border: 1px solid #ddd; padding: 8px; text-align: center; vertical-align: middle; }
         th { background-color: #2f5597; color: white; }
         img.thumb { width: 50px; height: 50px; object-fit: cover; border-radius: 4px; }
+        
+        .col-aksi { display: table-cell; }
+        .hide-col { display: none !important; }
     </style>
 </head>
 <body>
@@ -83,6 +105,14 @@
     <h2>REKAPITULASI PELANGGARAN SISWA/SISWI</h2>
     <h3 class="school-name">SMP GELORA BEKASI</h3>
     <div class="sub-title">TAHUN AJARAN 2026-2027</div>
+
+    <!-- Panel Pengaturan Mode Admin -->
+    <div class="admin-bar">
+        <div class="admin-status">
+            Status Akses: <span id="status-badge" class="badge-guest">Tamu (Lihat Saja)</span>
+        </div>
+        <button id="btn-auth" class="btn-admin-auth" onclick="toggleAdminAuth()">🔑 Login Admin</button>
+    </div>
     
     <audio id="bg-music" loop preload="none">
         <source src="https://pdhraphbbdjsabhiokgo.supabase.co/storage/v1/object/public/Sound/Raiso%20Ngapusi%20-%20La%20Tasya%20Feat.%20Aryan%20Tekomlaku%20(HIPHOP%20DANGDUT%20VERSION).mp3" type="audio/mpeg">
@@ -90,29 +120,31 @@
 
     <input type="hidden" id="edit-id">
 
-    <div class="form-group">
-        <label for="tanggal">Hari / Tanggal</label>
-        <input type="date" id="tanggal">
-    </div>
-    <div class="form-group">
-        <label for="nama">Nama Siswa</label>
-        <input type="text" id="nama" placeholder="Masukkan nama siswa">
-    </div>
-    <div class="form-group">
-        <label for="kelas">Kelas</label>
-        <input type="text" id="kelas" placeholder="Contoh: 7A">
-    </div>
-    <div class="form-group">
-        <label for="pelanggaran">Jenis Pelanggaran</label>
-        <input type="text" id="pelanggaran" placeholder="Contoh: Terlambat, Baju Dikeluarkan, Merokok">
-    </div>
-    <div class="form-group">
-        <label for="foto">Foto Bukti <small style="color: #666; font-weight: normal;">(Otomatis dikompres &lt; 200KB)</small></label>
-        <input type="file" id="foto" accept="image/*">
-    </div>
+    <div id="form-container" class="form-disabled">
+        <div class="form-group">
+            <label for="tanggal">Hari / Tanggal</label>
+            <input type="date" id="tanggal" disabled>
+        </div>
+        <div class="form-group">
+            <label for="nama">Nama Siswa</label>
+            <input type="text" id="nama" placeholder="Masukkan nama siswa" disabled>
+        </div>
+        <div class="form-group">
+            <label for="kelas">Kelas</label>
+            <input type="text" id="kelas" placeholder="Contoh: 7A" disabled>
+        </div>
+        <div class="form-group">
+            <label for="pelanggaran">Jenis Pelanggaran</label>
+            <input type="text" id="pelanggaran" placeholder="Contoh: Terlambat, Baju Dikeluarkan, Merokok" disabled>
+        </div>
+        <div class="form-group">
+            <label for="foto">Foto Bukti <small style="color: #666; font-weight: normal;">(Otomatis dikompres &lt; 200KB)</small></label>
+            <input type="file" id="foto" accept="image/*" disabled>
+        </div>
 
-    <button id="btn-save" class="btn-submit" onclick="simpanData()">Simpan Data</button>
-    <button id="btn-cancel" class="btn-cancel" onclick="batalEdit()">Batal Edit</button>
+        <button id="btn-save" class="btn-submit" onclick="simpanData()" disabled>Simpan Data (Hanya Admin)</button>
+        <button id="btn-cancel" class="btn-cancel" onclick="batalEdit()">Batal Edit</button>
+    </div>
 
     <button class="btn-excel" onclick="exportToExcel()">Export ke Excel (.xlsx)</button>
 
@@ -131,7 +163,7 @@
                 <th>Kelas</th>
                 <th>Pelanggaran</th>
                 <th>Foto</th>
-                <th>Aksi</th>
+                <th id="th-aksi" class="col-aksi hide-col">Aksi</th>
             </tr>
         </thead>
         <tbody id="table-body"></tbody>
@@ -151,21 +183,25 @@
     const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBkaHJhcGhiYmRqc2FiaGlva2dvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkyODMxODUsImV4cCI6MjEwNDg1OTE4NX0.FesFprS6pIbuz1x2YDOw1rKdvjgirWRBt3sPrR5EhpY";
     const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
+    // KATA SANGI ADMIN (Bisa diganti sesuai keinginan)
+    const ADMIN_PASSWORD = "admin123";
+    let isAdmin = false;
+
     let records = [];
     let myChart = null;
 
     // Palette Warna Diagram
     const predefinedPalette = [
-        { bg: 'rgba(255, 99, 132, 0.85)', border: 'rgba(255, 99, 132, 1)' },   // Merah Muda
-        { bg: 'rgba(54, 162, 235, 0.85)', border: 'rgba(54, 162, 235, 1)' },   // Biru
-        { bg: 'rgba(255, 206, 86, 0.85)', border: 'rgba(255, 206, 86, 1)' },   // Kuning
-        { bg: 'rgba(75, 192, 192, 0.85)', border: 'rgba(75, 192, 192, 1)' },   // Toska
-        { bg: 'rgba(153, 102, 255, 0.85)', border: 'rgba(153, 102, 255, 1)' }, // Ungu
-        { bg: 'rgba(255, 159, 64, 0.85)', border: 'rgba(255, 159, 64, 1)' },   // Oranye
-        { bg: 'rgba(46, 204, 113, 0.85)', border: 'rgba(46, 204, 113, 1)' },   // Hijau
-        { bg: 'rgba(231, 76, 60, 0.85)', border: 'rgba(231, 76, 60, 1)' },     // Merah
-        { bg: 'rgba(155, 89, 182, 0.85)', border: 'rgba(155, 89, 182, 1)' },   // Ungu Tua
-        { bg: 'rgba(52, 152, 219, 0.85)', border: 'rgba(52, 152, 219, 1)' }    // Biru Muda
+        { bg: 'rgba(255, 99, 132, 0.85)', border: 'rgba(255, 99, 132, 1)' },   
+        { bg: 'rgba(54, 162, 235, 0.85)', border: 'rgba(54, 162, 235, 1)' },   
+        { bg: 'rgba(255, 206, 86, 0.85)', border: 'rgba(255, 206, 86, 1)' },   
+        { bg: 'rgba(75, 192, 192, 0.85)', border: 'rgba(75, 192, 192, 1)' },   
+        { bg: 'rgba(153, 102, 255, 0.85)', border: 'rgba(153, 102, 255, 1)' }, 
+        { bg: 'rgba(255, 159, 64, 0.85)', border: 'rgba(255, 159, 64, 1)' },   
+        { bg: 'rgba(46, 204, 113, 0.85)', border: 'rgba(46, 204, 113, 1)' },   
+        { bg: 'rgba(231, 76, 60, 0.85)', border: 'rgba(231, 76, 60, 1)' },     
+        { bg: 'rgba(155, 89, 182, 0.85)', border: 'rgba(155, 89, 182, 1)' },   
+        { bg: 'rgba(52, 152, 219, 0.85)', border: 'rgba(52, 152, 219, 1)' }    
     ];
 
     function generateColors(count) {
@@ -187,41 +223,84 @@
 
     document.getElementById('tanggal').value = new Date().toISOString().split('T')[0];
 
+    // FUNGSI AUTHENTIKASI ADMIN
+    function toggleAdminAuth() {
+        if (isAdmin) {
+            // Logout Admin
+            isAdmin = false;
+            updateAdminUI();
+            alert("Anda telah keluar dari Mode Admin.");
+        } else {
+            // Login Admin
+            const password = prompt("Masukkan Kata Sandi Admin:");
+            if (password === ADMIN_PASSWORD) {
+                isAdmin = true;
+                updateAdminUI();
+                alert("Berhasil masuk sebagai Admin!");
+            } else if (password !== null) {
+                alert("Kata sandi salah!");
+            }
+        }
+    }
+
+    function updateAdminUI() {
+        const statusBadge = document.getElementById('status-badge');
+        const btnAuth = document.getElementById('btn-auth');
+        const formContainer = document.getElementById('form-container');
+        const inputs = formContainer.querySelectorAll('input, button');
+        const thAksi = document.getElementById('th-aksi');
+
+        if (isAdmin) {
+            statusBadge.innerText = "Admin (Akses Penuh)";
+            statusBadge.className = "badge-admin";
+            btnAuth.innerText = "🔒 Logout Admin";
+            
+            formContainer.classList.remove('form-disabled');
+            inputs.forEach(el => el.disabled = false);
+            document.getElementById('btn-save').innerText = "Simpan Data";
+            thAksi.classList.remove('hide-col');
+        } else {
+            statusBadge.innerText = "Tamu (Lihat Saja)";
+            statusBadge.className = "badge-guest";
+            btnAuth.innerText = "🔑 Login Admin";
+            
+            formContainer.classList.add('form-disabled');
+            inputs.forEach(el => el.disabled = true);
+            document.getElementById('btn-save').innerText = "Simpan Data (Hanya Admin)";
+            thAksi.classList.add('hide-col');
+            batalEdit();
+        }
+
+        renderTable(records);
+    }
+
     // FUNGSI PENGELOMPOKAN KATA MIRIP UNTUK GRAFIK
     function normalisasiPelanggaran(teks) {
         if (!teks) return 'Lainnya';
         const str = teks.toLowerCase().trim();
 
-        // 1. Merokok / Vape
         if (str.includes('rokok') || str.includes('vape') || str.includes('pod') || str.includes('udud')) {
             return 'Merokok / Vape';
         }
-        // 2. Keterlambatan
         if (str.includes('lambat') || str.includes('late') || str.includes('kesiangan') || str.includes('telat')) {
             return 'Terlambat';
         }
-        // 3. Atribut / Seragam / Baju
         if (str.includes('baju') || str.includes('seragam') || str.includes('sepatu') || str.includes('kaos kaki') || str.includes('dasi') || str.includes('sabuk') || str.includes('atribut')) {
             return 'Seragam / Atribut';
         }
-        // 4. HP / Handphone / Gadget
         if (str.includes('hp') || str.includes('handphone') || str.includes('telepon') || str.includes('game') || str.includes('gadget')) {
             return 'Penggunaan HP';
         }
-        // 5. Bolos / Cabut
         if (str.includes('bolos') || str.includes('cabut') || str.includes('kabur') || str.includes('alpa')) {
             return 'Membolos';
         }
-        // 6. Rambut / Make Up / Perhiasan
         if (str.includes('rambut') || str.includes('gondrong') || str.includes('cat') || str.includes('makeup') || str.includes('make up') || str.includes('zipper')) {
             return 'Rambut / Penampilan';
         }
-        // 7. Perkelahian / Pukulan / Pertengkaran
         if (str.includes('berkelahi') || str.includes('pukul') || str.includes('tengkar') || str.includes('berantem') || str.includes('tauran')) {
             return 'Perkelahian / Bullying';
         }
 
-        // Jika tidak masuk aturan mana pun, kembalikan huruf besar di awal (Title Case)
         return teks.charAt(0).toUpperCase() + teks.slice(1);
     }
 
@@ -286,13 +365,26 @@
         const tbody = document.getElementById('table-body');
         tbody.innerHTML = '';
 
+        const totalCols = isAdmin ? 7 : 6;
+
         if (!dataToRender || dataToRender.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; color: #888;">Data tidak ditemukan</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="${totalCols}" style="text-align:center; color: #888;">Data tidak ditemukan</td></tr>`;
             return;
         }
 
         dataToRender.forEach((item, index) => {
             const tr = document.createElement('tr');
+            
+            let aksiTd = '';
+            if (isAdmin) {
+                aksiTd = `
+                    <td class="col-aksi">
+                        <button class="btn-edit" onclick="editData(${item.id})">Edit</button>
+                        <button class="btn-delete" onclick="hapusData(${item.id})">Hapus</button>
+                    </td>
+                `;
+            }
+
             tr.innerHTML = `
                 <td>${index + 1}</td>
                 <td>${item.tanggal || '-'}</td>
@@ -300,10 +392,7 @@
                 <td>${item.kelas || '-'}</td>
                 <td>${item.pelanggaran || '-'}</td>
                 <td>${item.foto_url ? `<a href="${item.foto_url}" target="_blank"><img src="${item.foto_url}" class="thumb"></a>` : '-'}</td>
-                <td>
-                    <button class="btn-edit" onclick="editData(${item.id})">Edit</button>
-                    <button class="btn-delete" onclick="hapusData(${item.id})">Hapus</button>
-                </td>
+                ${aksiTd}
             `;
             tbody.appendChild(tr);
         });
@@ -314,7 +403,6 @@
         const counts = {};
         
         dataToRender.forEach(item => {
-            // Gunakan fungsi normalisasi untuk menyatukan kata yang mirip
             const jenisKategori = normalisasiPelanggaran(item.pelanggaran);
             counts[jenisKategori] = (counts[jenisKategori] || 0) + 1;
         });
@@ -388,6 +476,8 @@
     document.addEventListener('click', playAudioOnInteraction);
 
     async function simpanData() {
+        if (!isAdmin) return alert("Akses Ditolak: Hanya Admin yang bisa menyimpan data!");
+
         const editId = document.getElementById('edit-id').value;
         const tanggal = document.getElementById('tanggal').value;
         const nama = document.getElementById('nama').value.trim();
@@ -459,6 +549,8 @@
     }
 
     function editData(id) {
+        if (!isAdmin) return alert("Akses Ditolak!");
+
         const item = records.find(r => r.id === id);
         if (!item) return;
 
@@ -475,8 +567,8 @@
 
     function batalEdit() {
         const btnSave = document.getElementById('btn-save');
-        btnSave.disabled = false;
-        btnSave.innerText = "Simpan Data";
+        btnSave.disabled = !isAdmin;
+        btnSave.innerText = isAdmin ? "Simpan Data" : "Simpan Data (Hanya Admin)";
 
         document.getElementById('edit-id').value = '';
         document.getElementById('tanggal').value = new Date().toISOString().split('T')[0];
@@ -490,6 +582,8 @@
 
     // FUNGSI HAPUS DATA + FOTO DI SUPABASE STORAGE
     async function hapusData(id) {
+        if (!isAdmin) return alert("Akses Ditolak!");
+
         if (!confirm("Apakah Anda yakin ingin menghapus data ini?")) return;
 
         const item = records.find(r => r.id === id);
