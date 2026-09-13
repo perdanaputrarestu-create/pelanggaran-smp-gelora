@@ -24,10 +24,10 @@
             overflow: hidden;    
         }
 
-        /* Watermark Transparan */
+        /* Watermark Transparan (Melayang Tetap di Tengah Layar) */
         .container::before {
             content: "";
-            position: fixed;
+            position: fixed;               /* Fixed agar tetap melayang di tengah layar saat scroll */
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
@@ -107,7 +107,7 @@
         <input type="text" id="pelanggaran" placeholder="Contoh: Terlambat, Baju Dikeluarkan">
     </div>
     <div class="form-group">
-        <label for="foto">Foto Bukti</label>
+        <label for="foto">Foto Bukti <small style="color: #666; font-weight: normal;">(Otomatis dikompres &lt; 200KB)</small></label>
         <input type="file" id="foto" accept="image/*">
     </div>
 
@@ -156,12 +156,12 @@
 
     // Palette Warna Berbeda Setiap Batang Chart
     const barColors = [
-        'rgba(255, 99, 132, 0.8)',   /* Merah Muda / Pink */
-        'rgba(54, 162, 235, 0.8)',   /* Biru */
-        'rgba(255, 206, 86, 0.8)',   /* Kuning */
-        'rgba(75, 192, 192, 0.8)',   /* Hijau Toska */
-        'rgba(153, 102, 255, 0.8)',  /* Ungu */
-        'rgba(255, 159, 64, 0.8)'    /* Oranye */
+        'rgba(255, 99, 132, 0.8)',
+        'rgba(54, 162, 235, 0.8)',
+        'rgba(255, 206, 86, 0.8)',
+        'rgba(75, 192, 192, 0.8)',
+        'rgba(153, 102, 255, 0.8)',
+        'rgba(255, 159, 64, 0.8)'
     ];
     
     const borderColors = [
@@ -175,11 +175,56 @@
 
     document.getElementById('tanggal').value = new Date().toISOString().split('T')[0];
 
+    // FUNGSI UTAMA UNTUK KOMPRESI GAMBAR SECARA OTOMATIS
+    function compressImage(file, maxWidth = 800, quality = 0.7) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = (event) => {
+                const img = new Image();
+                img.src = event.target.result;
+                img.onload = () => {
+                    let width = img.width;
+                    let height = img.height;
+
+                    // Cek dan sesuaikan rasio resolusi maksimal (lebar maks 800px)
+                    if (width > maxWidth) {
+                        height = Math.round((height * maxWidth) / width);
+                        width = maxWidth;
+                    }
+
+                    const canvas = document.createElement('canvas');
+                    canvas.width = width;
+                    canvas.height = height;
+
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, width, height);
+
+                    // Konversi ke format JPEG dengan kualitas 70%
+                    canvas.toBlob((blob) => {
+                        if (blob) {
+                            // Kembalikan file baru yang ukurannya sudah kecil
+                            const compressedFile = new File([blob], file.name.replace(/\.[^/.]+$/, "") + ".jpg", {
+                                type: 'image/jpeg',
+                                lastModified: Date.now()
+                            });
+                            resolve(compressedFile);
+                        } else {
+                            reject(new Error("Gagal mengompres gambar"));
+                        }
+                    }, 'image/jpeg', quality);
+                };
+                img.onerror = (err) => reject(err);
+            };
+            reader.onerror = (err) => reject(err);
+        });
+    }
+
     async function loadData() {
         const { data, error } = await _supabase
             .from('pelanggaran')
             .select('*')
-            .order('id', { ascending: true });
+            .order('id', { ascending: true }); // Ubah ke true jika ingin urut lama->baru
 
         if (error) {
             console.error("Gagal mengambil data:", error);
@@ -291,7 +336,7 @@
         const nama = document.getElementById('nama').value.trim();
         const kelas = document.getElementById('kelas').value.trim();
         const pelanggaran = document.getElementById('pelanggaran').value.trim();
-        const fotoFile = document.getElementById('foto').files[0];
+        const fotoInput = document.getElementById('foto').files[0];
 
         if (!nama || !kelas || !pelanggaran) {
             return alert("Nama, Kelas, dan Pelanggaran wajib diisi!");
@@ -299,21 +344,39 @@
 
         let fotoUrl = null;
 
-        if (fotoFile) {
-            const fileExt = fotoFile.name.split('.').pop();
-            const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
-            
-            const { data: uploadData, error: uploadError } = await _supabase.storage
-                .from('foto-pelanggaran')
-                .upload(fileName, fotoFile);
+        if (fotoInput) {
+            const btnSave = document.getElementById('btn-save');
+            btnSave.innerText = "Mengompres & Mengunggah Foto...";
+            btnSave.disabled = true;
 
-            if (uploadError) return alert("Gagal mengupload foto: " + uploadError.message);
+            try {
+                // PANGGUL FUNGSI AUTO-COMPRESS DI SINI
+                const fileDikompres = await compressImage(fotoInput, 800, 0.7);
 
-            const { data: publicUrlData } = _supabase.storage
-                .from('foto-pelanggaran')
-                .getPublicUrl(fileName);
+                const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.jpg`;
+                
+                const { data: uploadData, error: uploadError } = await _supabase.storage
+                    .from('foto-pelanggaran')
+                    .upload(fileName, fileDikompres);
 
-            fotoUrl = publicUrlData.publicUrl;
+                if (uploadError) {
+                    btnSave.disabled = false;
+                    btnSave.innerText = editId ? "Update Data" : "Simpan Data";
+                    return alert("Gagal mengupload foto: " + uploadError.message);
+                }
+
+                const { data: publicUrlData } = _supabase.storage
+                    .from('foto-pelanggaran')
+                    .getPublicUrl(fileName);
+
+                fotoUrl = publicUrlData.publicUrl;
+            } catch (err) {
+                console.error(err);
+                alert("Gagal memproses kompresi foto.");
+                btnSave.disabled = false;
+                btnSave.innerText = editId ? "Update Data" : "Simpan Data";
+                return;
+            }
         }
 
         if (editId) {
@@ -356,6 +419,10 @@
     }
 
     function batalEdit() {
+        const btnSave = document.getElementById('btn-save');
+        btnSave.disabled = false;
+        btnSave.innerText = "Simpan Data";
+
         document.getElementById('edit-id').value = '';
         document.getElementById('tanggal').value = new Date().toISOString().split('T')[0];
         document.getElementById('nama').value = '';
@@ -363,7 +430,6 @@
         document.getElementById('pelanggaran').value = '';
         document.getElementById('foto').value = '';
 
-        document.getElementById('btn-save').innerText = "Simpan Data";
         document.getElementById('btn-cancel').style.display = "none";
     }
 
