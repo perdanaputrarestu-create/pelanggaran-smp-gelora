@@ -53,7 +53,7 @@
             border: 1px solid #e2e8f0;
             border-radius: 8px;
             padding: 15px;
-            margin-bottom: 25px;
+            margin-top: 30px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.05);
         }
         .chart-container {
@@ -116,14 +116,6 @@
 
     <button class="btn-excel" onclick="exportToExcel()">Export ke Excel (.xlsx)</button>
 
-    <!-- Diagram Statistik -->
-    <div class="chart-section">
-        <h3 style="margin-top: 0; color: #1f4e78; font-size: 16px;">📊 Statistik Jenis Pelanggaran Terbanyak</h3>
-        <div class="chart-container">
-            <canvas id="pelanggaranChart"></canvas>
-        </div>
-    </div>
-
     <h3 style="text-align: left; margin-top: 25px;">Daftar Pelanggaran</h3>
 
     <div class="form-group">
@@ -144,6 +136,14 @@
         </thead>
         <tbody id="table-body"></tbody>
     </table>
+
+    <!-- Diagram Statistik -->
+    <div class="chart-section">
+        <h3 style="margin-top: 0; color: #1f4e78; font-size: 16px;">📊 Grafik Top 5 Jenis Pelanggaran Terbanyak</h3>
+        <div class="chart-container">
+            <canvas id="pelanggaranChart"></canvas>
+        </div>
+    </div>
 </div>
 
 <script>
@@ -153,6 +153,25 @@
 
     let records = [];
     let myChart = null;
+
+    // Palette Warna Berbeda Setiap Batang Chart
+    const barColors = [
+        'rgba(255, 99, 132, 0.8)',   /* Merah Muda / Pink */
+        'rgba(54, 162, 235, 0.8)',   /* Biru */
+        'rgba(255, 206, 86, 0.8)',   /* Kuning */
+        'rgba(75, 192, 192, 0.8)',   /* Hijau Toska */
+        'rgba(153, 102, 255, 0.8)',  /* Ungu */
+        'rgba(255, 159, 64, 0.8)'    /* Oranye */
+    ];
+    
+    const borderColors = [
+        'rgba(255, 99, 132, 1)',
+        'rgba(54, 162, 235, 1)',
+        'rgba(255, 206, 86, 1)',
+        'rgba(75, 192, 192, 1)',
+        'rgba(153, 102, 255, 1)',
+        'rgba(255, 159, 64, 1)'
+    ];
 
     document.getElementById('tanggal').value = new Date().toISOString().split('T')[0];
 
@@ -198,17 +217,14 @@
         });
     }
 
-    // Fungsi Pembaharuan Diagram
     function updateChart(dataToRender) {
         const counts = {};
         
-        // Hitung frekuensi tiap pelanggaran
         dataToRender.forEach(item => {
             const jenis = (item.pelanggaran || 'Lainnya').trim();
             counts[jenis] = (counts[jenis] || 0) + 1;
         });
 
-        // Urutkan dari terbanyak & ambil Top 5
         const sorted = Object.entries(counts)
             .sort((a, b) => b[1] - a[1])
             .slice(0, 5);
@@ -227,12 +243,12 @@
             data: {
                 labels: labels.length ? labels : ['Belum Ada Data'],
                 datasets: [{
-                    label: 'Jumlah Pelanggaran',
+                    label: 'Jumlah Kasus',
                     data: values.length ? values : [0],
-                    backgroundColor: 'rgba(47, 85, 151, 0.75)',
-                    borderColor: '#2f5597',
+                    backgroundColor: barColors.slice(0, labels.length),
+                    borderColor: borderColors.slice(0, labels.length),
                     borderWidth: 1.5,
-                    borderRadius: 4
+                    borderRadius: 5
                 }]
             },
             options: {
@@ -259,7 +275,6 @@
             return nama.includes(keyword) || kelas.includes(keyword);
         });
         renderTable(filtered);
-        updateChart(filtered);
     }
 
     function playAudioOnInteraction() {
