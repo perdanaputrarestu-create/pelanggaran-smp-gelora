@@ -179,7 +179,7 @@
         const { data, error } = await _supabase
             .from('pelanggaran')
             .select('*')
-            .order('id', { ascending: false });
+            .order('id', { ascending: true });
 
         if (error) {
             console.error("Gagal mengambil data:", error);
