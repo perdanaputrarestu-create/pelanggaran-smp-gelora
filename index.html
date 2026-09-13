@@ -24,10 +24,10 @@
             overflow: hidden;    
         }
 
-        /* Watermark Transparan (Melayang Tetap di Tengah Layar) */
+        /* Watermark Transparan (Tetap di Tengah Layar) */
         .container::before {
             content: "";
-            position: fixed;               /* Fixed agar tetap melayang di tengah layar saat scroll */
+            position: fixed;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
@@ -58,7 +58,7 @@
         }
         .chart-container {
             position: relative;
-            height: 260px;
+            height: 320px;
             width: 100%;
         }
 
@@ -139,7 +139,7 @@
 
     <!-- Diagram Statistik -->
     <div class="chart-section">
-        <h3 style="margin-top: 0; color: #1f4e78; font-size: 16px;">📊 Grafik Top 5 Jenis Pelanggaran Terbanyak</h3>
+        <h3 style="margin-top: 0; color: #1f4e78; font-size: 16px;">📊 Grafik Seluruh Jenis Pelanggaran</h3>
         <div class="chart-container">
             <canvas id="pelanggaranChart"></canvas>
         </div>
@@ -154,28 +154,42 @@
     let records = [];
     let myChart = null;
 
-    // Palette Warna Berbeda Setiap Batang Chart
-    const barColors = [
-        'rgba(255, 99, 132, 0.8)',
-        'rgba(54, 162, 235, 0.8)',
-        'rgba(255, 206, 86, 0.8)',
-        'rgba(75, 192, 192, 0.8)',
-        'rgba(153, 102, 255, 0.8)',
-        'rgba(255, 159, 64, 0.8)'
+    // Palette Warna Siap Pakai (Beda-beda tiap kategori)
+    const predefinedPalette = [
+        { bg: 'rgba(255, 99, 132, 0.85)', border: 'rgba(255, 99, 132, 1)' },   // Merah Muda
+        { bg: 'rgba(54, 162, 235, 0.85)', border: 'rgba(54, 162, 235, 1)' },   // Biru
+        { bg: 'rgba(255, 206, 86, 0.85)', border: 'rgba(255, 206, 86, 1)' },   // Kuning
+        { bg: 'rgba(75, 192, 192, 0.85)', border: 'rgba(75, 192, 192, 1)' },   // Toska
+        { bg: 'rgba(153, 102, 255, 0.85)', border: 'rgba(153, 102, 255, 1)' }, // Ungu
+        { bg: 'rgba(255, 159, 64, 0.85)', border: 'rgba(255, 159, 64, 1)' },   // Oranye
+        { bg: 'rgba(46, 204, 113, 0.85)', border: 'rgba(46, 204, 113, 1)' },   // Hijau
+        { bg: 'rgba(231, 76, 60, 0.85)', border: 'rgba(231, 76, 60, 1)' },     // Merah
+        { bg: 'rgba(155, 89, 182, 0.85)', border: 'rgba(155, 89, 182, 1)' },   // Ungu Tua
+        { bg: 'rgba(52, 152, 219, 0.85)', border: 'rgba(52, 152, 219, 1)' }    // Biru Muda
     ];
-    
-    const borderColors = [
-        'rgba(255, 99, 132, 1)',
-        'rgba(54, 162, 235, 1)',
-        'rgba(255, 206, 86, 1)',
-        'rgba(75, 192, 192, 1)',
-        'rgba(153, 102, 255, 1)',
-        'rgba(255, 159, 64, 1)'
-    ];
+
+    // Generator Warna Tambahan Otomatis Jika Jenis Pelanggaran Lebih dari 10 Kategori
+    function generateColors(count) {
+        const bgColors = [];
+        const borderColors = [];
+
+        for (let i = 0; i < count; i++) {
+            if (i < predefinedPalette.length) {
+                bgColors.push(predefinedPalette[i].bg);
+                borderColors.push(predefinedPalette[i].border);
+            } else {
+                // Generasi warna acak berputar jika kategori sangat banyak
+                const hue = (i * 137.5) % 360;
+                bgColors.push(`hsla(${hue}, 75%, 60%, 0.85)`);
+                borderColors.push(`hsla(${hue}, 75%, 45%, 1)`);
+            }
+        }
+        return { bgColors, borderColors };
+    }
 
     document.getElementById('tanggal').value = new Date().toISOString().split('T')[0];
 
-    // FUNGSI UTAMA UNTUK KOMPRESI GAMBAR SECARA OTOMATIS
+    // FUNGSI KOMPRESI GAMBAR OTOMATIS
     function compressImage(file, maxWidth = 800, quality = 0.7) {
         return new Promise((resolve, reject) => {
             const reader = new FileReader();
@@ -187,7 +201,6 @@
                     let width = img.width;
                     let height = img.height;
 
-                    // Cek dan sesuaikan rasio resolusi maksimal (lebar maks 800px)
                     if (width > maxWidth) {
                         height = Math.round((height * maxWidth) / width);
                         width = maxWidth;
@@ -200,10 +213,8 @@
                     const ctx = canvas.getContext('2d');
                     ctx.drawImage(img, 0, 0, width, height);
 
-                    // Konversi ke format JPEG dengan kualitas 70%
                     canvas.toBlob((blob) => {
                         if (blob) {
-                            // Kembalikan file baru yang ukurannya sudah kecil
                             const compressedFile = new File([blob], file.name.replace(/\.[^/.]+$/, "") + ".jpg", {
                                 type: 'image/jpeg',
                                 lastModified: Date.now()
@@ -224,7 +235,7 @@
         const { data, error } = await _supabase
             .from('pelanggaran')
             .select('*')
-            .order('id', { ascending: true }); // Ubah ke true jika ingin urut lama->baru
+            .order('id', { ascending: true });
 
         if (error) {
             console.error("Gagal mengambil data:", error);
@@ -262,6 +273,7 @@
         });
     }
 
+    // MEMPERBARUI CHART WARNA BEDA-BEDA UNTUK SETIAP KASUS
     function updateChart(dataToRender) {
         const counts = {};
         
@@ -270,12 +282,13 @@
             counts[jenis] = (counts[jenis] || 0) + 1;
         });
 
-        const sorted = Object.entries(counts)
-            .sort((a, b) => b[1] - a[1])
-            .slice(0, 5);
+        const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
 
         const labels = sorted.map(item => item[0]);
         const values = sorted.map(item => item[1]);
+
+        // Mengambil array warna yang berbeda untuk setiap batang
+        const { bgColors, borderColors } = generateColors(labels.length);
 
         const ctx = document.getElementById('pelanggaranChart').getContext('2d');
 
@@ -290,8 +303,8 @@
                 datasets: [{
                     label: 'Jumlah Kasus',
                     data: values.length ? values : [0],
-                    backgroundColor: barColors.slice(0, labels.length),
-                    borderColor: borderColors.slice(0, labels.length),
+                    backgroundColor: bgColors,      /* Warna Batang Berbeda-beda */
+                    borderColor: borderColors,  /* Warna Garis Pinggir Berbeda-beda */
                     borderWidth: 1.5,
                     borderRadius: 5
                 }]
@@ -306,6 +319,13 @@
                     y: {
                         beginAtZero: true,
                         ticks: { stepSize: 1, precision: 0 }
+                    },
+                    x: {
+                        ticks: {
+                            autoSkip: false,
+                            maxRotation: 45,
+                            minRotation: 0
+                        }
                     }
                 }
             }
@@ -350,7 +370,6 @@
             btnSave.disabled = true;
 
             try {
-                // PANGGUL FUNGSI AUTO-COMPRESS DI SINI
                 const fileDikompres = await compressImage(fotoInput, 800, 0.7);
 
                 const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.jpg`;
