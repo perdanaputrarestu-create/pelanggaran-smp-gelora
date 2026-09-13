@@ -54,6 +54,7 @@
         button { padding: 10px 15px; border: none; cursor: pointer; border-radius: 4px; font-weight: bold; }
         .btn-submit { background-color: #28a745; color: white; width: 100%; }
         .btn-excel { background-color: #1f4e78; color: white; margin-top: 15px; margin-bottom: 15px; width: 100%; font-size: 16px; }
+        .btn-music { background-color: #6f42c1; color: white; margin-bottom: 15px; width: 100%; font-size: 14px; }
         .btn-edit { background-color: #ffc107; color: black; padding: 5px 10px; margin-right: 5px; border-radius: 3px; }
         .btn-delete { background-color: #dc3545; color: white; padding: 5px 10px; border-radius: 3px; }
         .btn-cancel { background-color: #6c757d; color: white; display: none; margin-top: 5px; width: 100%; }
@@ -70,6 +71,13 @@
     <h3 class="school-name">SMP GELORA BEKASI</h3>
     <div class="sub-title">TAHUN AJARAN 2026-2027</div>
     
+    <!-- Audio Background (Ganti URL dengan link MP3 Anda jika ada) -->
+    <audio id="bg-music" loop>
+        <source src="https://pdhraphbbdjsabhiokgo.supabase.co/storage/v1/object/public/Sound/Raiso%20Ngapusi%20-%20La%20Tasya%20Feat.%20Aryan%20Tekomlaku%20(HIPHOP%20DANGDUT%20VERSION).mp3" type="audio/mpeg">
+    </audio>
+
+    <button class="btn-music" onclick="toggleMusic()">🎵 On / Off Musik Latar</button>
+
     <input type="hidden" id="edit-id">
 
     <div class="form-group">
@@ -185,7 +193,25 @@
         renderTable(filtered);
     }
 
-    // 4. Simpan / Update Data
+    // 4. Fitur Musik (Autoplay via Interaksi + Toggle Button)
+    function playAudioOnInteraction() {
+        const audio = document.getElementById('bg-music');
+        audio.volume = 0.2; // Volume 20%
+        audio.play().catch(e => console.log("Autoplay ditahan browser:", e));
+        document.removeEventListener('click', playAudioOnInteraction);
+    }
+    document.addEventListener('click', playAudioOnInteraction);
+
+    function toggleMusic() {
+        const audio = document.getElementById('bg-music');
+        if (audio.paused) {
+            audio.play();
+        } else {
+            audio.pause();
+        }
+    }
+
+    // 5. Simpan / Update Data
     async function simpanData() {
         const editId = document.getElementById('edit-id').value;
         const tanggal = document.getElementById('tanggal').value;
@@ -239,7 +265,7 @@
         loadData();
     }
 
-    // 5. Persiapan Edit Data
+    // 6. Persiapan Edit Data
     function editData(id) {
         const item = records.find(r => r.id === id);
         if (!item) return;
@@ -254,7 +280,7 @@
         document.getElementById('btn-cancel').style.display = "block";
     }
 
-    // 6. Batal Edit
+    // 7. Batal Edit
     function batalEdit() {
         document.getElementById('edit-id').value = '';
         document.getElementById('tanggal').value = '';
@@ -267,7 +293,7 @@
         document.getElementById('btn-cancel').style.display = "none";
     }
 
-    // 7. Hapus Data
+    // 8. Hapus Data
     async function hapusData(id) {
         if (!confirm("Apakah Anda yakin ingin menghapus data ini?")) return;
 
@@ -284,7 +310,7 @@
         }
     }
 
-    // 8. Export ke Excel
+    // 9. Export ke Excel
     async function exportToExcel() {
         if (records.length === 0) return alert("Tidak ada data untuk diexport!");
 
