@@ -178,7 +178,6 @@
                 bgColors.push(predefinedPalette[i].bg);
                 borderColors.push(predefinedPalette[i].border);
             } else {
-                // Generasi warna acak berputar jika kategori sangat banyak
                 const hue = (i * 137.5) % 360;
                 bgColors.push(`hsla(${hue}, 75%, 60%, 0.85)`);
                 borderColors.push(`hsla(${hue}, 75%, 45%, 1)`);
@@ -287,7 +286,6 @@
         const labels = sorted.map(item => item[0]);
         const values = sorted.map(item => item[1]);
 
-        // Mengambil array warna yang berbeda untuk setiap batang
         const { bgColors, borderColors } = generateColors(labels.length);
 
         const ctx = document.getElementById('pelanggaranChart').getContext('2d');
@@ -303,8 +301,8 @@
                 datasets: [{
                     label: 'Jumlah Kasus',
                     data: values.length ? values : [0],
-                    backgroundColor: bgColors,      /* Warna Batang Berbeda-beda */
-                    borderColor: borderColors,  /* Warna Garis Pinggir Berbeda-beda */
+                    backgroundColor: bgColors,
+                    borderColor: borderColors,
                     borderWidth: 1.5,
                     borderRadius: 5
                 }]
@@ -452,9 +450,34 @@
         document.getElementById('btn-cancel').style.display = "none";
     }
 
+    // FUNGSI HAPUS DATA + FOTO DI SUPABASE STORAGE
     async function hapusData(id) {
         if (!confirm("Apakah Anda yakin ingin menghapus data ini?")) return;
 
+        // 1. Cari data berdasarkan ID untuk mengambil URL foto
+        const item = records.find(r => r.id === id);
+
+        // 2. Jika ada foto, hapus file gambar dari Supabase Storage
+        if (item && item.foto_url) {
+            try {
+                // Ekstrak nama file dari URL (string setelah slash terakhir)
+                const fileName = item.foto_url.split('/').pop();
+
+                if (fileName) {
+                    const { error: storageError } = await _supabase.storage
+                        .from('foto-pelanggaran')
+                        .remove([fileName]);
+
+                    if (storageError) {
+                        console.error("Gagal menghapus foto dari Storage:", storageError.message);
+                    }
+                }
+            } catch (err) {
+                console.error("Error saat memproses penghapusan foto:", err);
+            }
+        }
+
+        // 3. Hapus baris data di tabel Supabase
         const { error } = await _supabase
             .from('pelanggaran')
             .delete()
@@ -463,7 +486,7 @@
         if (error) {
             alert("Gagal menghapus data: " + error.message);
         } else {
-            alert("Data berhasil dihapus!");
+            alert("Data dan foto berhasil dihapus!");
             loadData();
         }
     }
