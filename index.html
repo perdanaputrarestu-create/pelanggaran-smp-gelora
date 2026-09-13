@@ -63,7 +63,7 @@
         .btn-admin-auth { background-color: #1f4e78; color: white; padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: bold; }
         .btn-admin-auth:hover { background-color: #153451; }
 
-        /* Form styling saat mode view-only */
+        /* Form styling saat mode view-only (Non-Admin) */
         .form-disabled { opacity: 0.6; pointer-events: none; }
         
         /* Container Diagram */
@@ -171,7 +171,7 @@
 
     <!-- Diagram Statistik -->
     <div class="chart-section">
-        <h3 style="margin-top: 0; color: #1f4e78; font-size: 16px;">📊 Grafik Seluruh Jenis Pelanggaran (Terkategori)</h3>
+        <h3 style="margin-top: 0; color: #1f4e78; font-size: 16px;">📊 Grafik Jenis Pelanggaran (Otomatis Dikelompokkan Berdasarkan Kemiripan Kata)</h3>
         <div class="chart-container">
             <canvas id="pelanggaranChart"></canvas>
         </div>
@@ -183,7 +183,7 @@
     const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBkaHJhcGhiYmRqc2FiaGlva2dvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkyODMxODUsImV4cCI6MjEwNDg1OTE4NX0.FesFprS6pIbuz1x2YDOw1rKdvjgirWRBt3sPrR5EhpY";
     const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    // KATA SANGI ADMIN (Bisa diganti sesuai keinginan)
+    // KATA SANDI ADMIN
     const ADMIN_PASSWORD = "admin123";
     let isAdmin = false;
 
@@ -226,12 +226,10 @@
     // FUNGSI AUTHENTIKASI ADMIN
     function toggleAdminAuth() {
         if (isAdmin) {
-            // Logout Admin
             isAdmin = false;
             updateAdminUI();
             alert("Anda telah keluar dari Mode Admin.");
         } else {
-            // Login Admin
             const password = prompt("Masukkan Kata Sandi Admin:");
             if (password === ADMIN_PASSWORD) {
                 isAdmin = true;
@@ -274,34 +272,142 @@
         renderTable(records);
     }
 
-    // FUNGSI PENGELOMPOKAN KATA MIRIP UNTUK GRAFIK
-    function normalisasiPelanggaran(teks) {
-        if (!teks) return 'Lainnya';
-        const str = teks.toLowerCase().trim();
+    // =========================================================================
+    // ALGORITMA FUZZY MATCHING (JARO-WINKLER SIMILARITY)
+    // =========================================================================
+    function getSimilarity(s1, s2) {
+        s1 = s1.toLowerCase().trim();
+        s2 = s2.toLowerCase().trim();
 
-        if (str.includes('rokok') || str.includes('vape') || str.includes('pod') || str.includes('udud')) {
-            return 'Merokok / Vape';
-        }
-        if (str.includes('lambat') || str.includes('late') || str.includes('kesiangan') || str.includes('telat')) {
-            return 'Terlambat';
-        }
-        if (str.includes('baju') || str.includes('seragam') || str.includes('sepatu') || str.includes('kaos kaki') || str.includes('dasi') || str.includes('sabuk') || str.includes('atribut')) {
-            return 'Seragam / Atribut';
-        }
-        if (str.includes('hp') || str.includes('handphone') || str.includes('telepon') || str.includes('game') || str.includes('gadget')) {
-            return 'Penggunaan HP';
-        }
-        if (str.includes('bolos') || str.includes('cabut') || str.includes('kabur') || str.includes('alpa')) {
-            return 'Membolos';
-        }
-        if (str.includes('rambut') || str.includes('gondrong') || str.includes('cat') || str.includes('makeup') || str.includes('make up') || str.includes('zipper')) {
-            return 'Rambut / Penampilan';
-        }
-        if (str.includes('berkelahi') || str.includes('pukul') || str.includes('tengkar') || str.includes('berantem') || str.includes('tauran')) {
-            return 'Perkelahian / Bullying';
+        if (s1 === s2) return 1.0;
+
+        let len1 = s1.length, len2 = s2.length;
+        if (len1 === 0 || len2 === 0) return 0.0;
+
+        let matchDistance = Math.floor(Math.max(len1, len2) / 2) - 1;
+        if (matchDistance < 0) matchDistance = 0;
+
+        let s1Matches = new Array(len1).fill(false);
+        let s2Matches = new Array(len2).fill(false);
+        let matches = 0;
+        let transpositions = 0;
+
+        for (let i = 0; i < len1; i++) {
+            let start = Math.max(0, i - matchDistance);
+            let end = Math.min(i + matchDistance + 1, len2);
+
+            for (let j = start; j < end; j++) {
+                if (s2Matches[j]) continue;
+                if (s1[i] !== s2[j]) continue;
+                s1Matches[i] = true;
+                s2Matches[j] = true;
+                matches++;
+                break;
+            }
         }
 
-        return teks.charAt(0).toUpperCase() + teks.slice(1);
+        if (matches === 0) return 0.0;
+
+        let k = 0;
+        for (let i = 0; i < len1; i++) {
+            if (!s1Matches[i]) continue;
+            while (!s2Matches[k]) k++;
+            if (s1[i] !== s2[k]) transpositions++;
+            k++;
+        }
+
+        let jaro = (matches / len1 + matches / len2 + (matches - transpositions / 2) / matches) / 3;
+
+        // Extension Prefix Winkler
+        let prefix = 0;
+        let maxPrefix = 4;
+        for (let i = 0; i < Math.min(maxPrefix, Math.min(len1, len2)); i++) {
+            if (s1[i] === s2[i]) prefix++;
+            else break;
+        }
+
+        return jaro + prefix * 0.1 * (1 - jaro);
+    }
+
+    // UPDATE GRAFIK DENGAN PENGELOMPOKAN KATA MIRIP
+    function updateChart(dataToRender) {
+        const groups = {}; 
+        const SIMILARITY_THRESHOLD = 0.70; // Sensitivitas kemiripan (70%)
+
+        dataToRender.forEach(item => {
+            let teksRaw = item.pelanggaran ? item.pelanggaran.trim() : '';
+            if (!teksRaw) return;
+
+            let teksFormatted = teksRaw.charAt(0).toUpperCase() + teksRaw.slice(1);
+            let matchFound = false;
+
+            // Cari kelompok kata yang mirip
+            for (let groupName in groups) {
+                let score = getSimilarity(teksFormatted, groupName);
+                
+                let firstWordInput = teksFormatted.split(' ')[0];
+                let firstWordGroup = groupName.split(' ')[0];
+                let firstWordScore = getSimilarity(firstWordInput, firstWordGroup);
+
+                if (score >= SIMILARITY_THRESHOLD || firstWordScore >= 0.85) {
+                    groups[groupName] += 1;
+                    matchFound = true;
+                    break;
+                }
+            }
+
+            if (!matchFound) {
+                groups[teksFormatted] = 1;
+            }
+        });
+
+        const sorted = Object.entries(groups).sort((a, b) => b[1] - a[1]);
+
+        const labels = sorted.map(item => item[0]);
+        const values = sorted.map(item => item[1]);
+
+        const { bgColors, borderColors } = generateColors(labels.length);
+
+        const ctx = document.getElementById('pelanggaranChart').getContext('2d');
+
+        if (myChart) {
+            myChart.destroy();
+        }
+
+        myChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels.length ? labels : ['Belum Ada Data'],
+                datasets: [{
+                    label: 'Jumlah Kasus',
+                    data: values.length ? values : [0],
+                    backgroundColor: bgColors,
+                    borderColor: borderColors,
+                    borderWidth: 1.5,
+                    borderRadius: 5
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: { stepSize: 1, precision: 0 }
+                    },
+                    x: {
+                        ticks: {
+                            autoSkip: false,
+                            maxRotation: 45,
+                            minRotation: 0
+                        }
+                    }
+                }
+            }
+        });
     }
 
     // FUNGSI KOMPRESI GAMBAR OTOMATIS
@@ -395,64 +501,6 @@
                 ${aksiTd}
             `;
             tbody.appendChild(tr);
-        });
-    }
-
-    // UPDATE CHART DENGAN PENGELOMPOKAN KATA MIRIP
-    function updateChart(dataToRender) {
-        const counts = {};
-        
-        dataToRender.forEach(item => {
-            const jenisKategori = normalisasiPelanggaran(item.pelanggaran);
-            counts[jenisKategori] = (counts[jenisKategori] || 0) + 1;
-        });
-
-        const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
-
-        const labels = sorted.map(item => item[0]);
-        const values = sorted.map(item => item[1]);
-
-        const { bgColors, borderColors } = generateColors(labels.length);
-
-        const ctx = document.getElementById('pelanggaranChart').getContext('2d');
-
-        if (myChart) {
-            myChart.destroy();
-        }
-
-        myChart = new Chart(ctx, {
-            type: 'bar',
-            data: {
-                labels: labels.length ? labels : ['Belum Ada Data'],
-                datasets: [{
-                    label: 'Jumlah Kasus',
-                    data: values.length ? values : [0],
-                    backgroundColor: bgColors,
-                    borderColor: borderColors,
-                    borderWidth: 1.5,
-                    borderRadius: 5
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: { display: false }
-                },
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        ticks: { stepSize: 1, precision: 0 }
-                    },
-                    x: {
-                        ticks: {
-                            autoSkip: false,
-                            maxRotation: 45,
-                            minRotation: 0
-                        }
-                    }
-                }
-            }
         });
     }
 
@@ -580,7 +628,6 @@
         document.getElementById('btn-cancel').style.display = "none";
     }
 
-    // FUNGSI HAPUS DATA + FOTO DI SUPABASE STORAGE
     async function hapusData(id) {
         if (!isAdmin) return alert("Akses Ditolak!");
 
