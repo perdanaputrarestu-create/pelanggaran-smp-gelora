@@ -164,20 +164,17 @@ function filterData() {
     });
 
     // Tampilkan hasil filter ke tabel
-    renderFilteredTable(filteredRecords);
-}
-
-// Fungsi bantu untuk menampilkan data yang sudah difilter
-function renderFilteredTable(dataList) {
+    // 2. Tampilkan Data di Tabel HTML (Mendukung Pencarian & Rendering)
+function renderTable(dataToRender = records) {
     const tbody = document.getElementById('table-body');
     tbody.innerHTML = '';
 
-    if (dataList.length === 0) {
+    if (dataToRender.length === 0) {
         tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; color: #888;">Data tidak ditemukan</td></tr>`;
         return;
     }
 
-    dataList.forEach((item, index) => {
+    dataToRender.forEach((item, index) => {
         const tr = document.createElement('tr');
         tr.innerHTML = `
             <td>${index + 1}</td>
@@ -195,7 +192,20 @@ function renderFilteredTable(dataList) {
     });
 }
 
-    }
+// Fungsi Filter Real-time (Nama atau Kelas)
+function filterData() {
+    const keyword = document.getElementById('search-input').value.toLowerCase().trim();
+    
+    const filtered = records.filter(item => {
+        const nama = (item.nama || '').toLowerCase();
+        const kelas = (item.kelas || '').toLowerCase();
+        
+        return nama.includes(keyword) || kelas.includes(keyword);
+    });
+
+    renderTable(filtered);
+}
+
 
     // 2. Tampilkan Data di Tabel HTML
     function renderTable() {
