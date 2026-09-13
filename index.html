@@ -33,7 +33,7 @@
 <body>
 
 <div class="container">
-    <h2>REKAPITULASI PELANGGARAN SISWA/SISWI</h2>
+    <h2>REKAPITULASI PELANGGARAN SISWA/SISWI FIX</h2>
     <h3 class="school-name">SMP GELORA BEKASI</h3>
     <div class="sub-title">TAHUN AJARAN 2026-2027</div>
     
@@ -325,7 +325,7 @@ async function exportToExcel() {
 
                     worksheet.addImage(imageId, {
                         tl: { col: 5.25, row: row.number - 0.85 },
-                        ext: { width: 70, height: 70 },
+                        ext: { width: 100, height: 100 },
                         editAs: 'oneCell'
                     });
                 } catch (e) {
