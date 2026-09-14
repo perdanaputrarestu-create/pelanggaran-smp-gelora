@@ -135,7 +135,7 @@ body.dark-mode .hero h2{ color: #93c5fd; }
     box-shadow:var(--shadow);
 }
 .access-line{
-    display:flex;align-items:center;justify-space-between;
+    display:flex;align-items:center;justify-content:space-between;
     gap:8px;margin-bottom:10px;font-size:12px;font-weight:700;
 }
 .badge{
@@ -409,7 +409,7 @@ body.dark-mode .nav-btn.active{color:#60a5fa}
     </div>
 </section>
 
-<!-- GRAFIK (PILIHAN FILTER MULTI-VISUALISASI) -->
+<!-- GRAFIK DINAMIS -->
 <section id="page-chart" class="page">
     <h2 class="section-title" style="margin-top:0">📊 Grafik Pelanggaran</h2>
     <div class="card chart-card">
@@ -456,7 +456,7 @@ body.dark-mode .nav-btn.active{color:#60a5fa}
     </div>
 </div>
 
-<!-- SIDEBAR MENU (DRAWER GARIS 3) -->
+<!-- SIDEBAR MENU -->
 <div id="side-menu" class="modal" onclick="if(event.target===this)closeMenu()">
     <div class="drawer-box">
         <div class="drawer-header">
@@ -699,7 +699,7 @@ function getSimilarity(s1,s2){
     return jaro+prefix*.1*(1-jaro);
 }
 
-// PEMBAGIAN KELOMPOK DATA GRAFIK DENGAN DIVERSIFIKASI
+// PEMBAGIAN KELOMPOK DATA GRAFIK (LOGIKA TERPERBARUI DAN PERSISI)
 function getGroups(data, filterType){
     const groups = {};
 
@@ -712,14 +712,36 @@ function getGroups(data, filterType){
     }
 
     if(filterType === 'tingkat'){
+        groups['Kelas 7'] = 0;
+        groups['Kelas 8'] = 0;
+        groups['Kelas 9'] = 0;
+        groups['Lainnya'] = 0;
+
         data.forEach(item => {
-            const k = (item.kelas || '').trim();
-            let tk = 'Lainnya';
-            if (k.startsWith('7')) tk = 'Kelas 7';
-            else if (k.startsWith('8')) tk = 'Kelas 8';
-            else if (k.startsWith('9')) tk = 'Kelas 9';
-            groups[tk] = (groups[tk] || 0) + 1;
+            const k = (item.kelas || '').toString().toUpperCase().trim();
+            let matched = false;
+            
+            if (k.includes('7') || k.includes('VII')) {
+                groups['Kelas 7']++;
+                matched = true;
+            } else if (k.includes('8') || k.includes('VIII')) {
+                groups['Kelas 8']++;
+                matched = true;
+            } else if (k.includes('9') || k.includes('IX')) {
+                groups['Kelas 9']++;
+                matched = true;
+            }
+
+            if (!matched) {
+                groups['Lainnya']++;
+            }
         });
+
+        // Hapus kunci yang jumlahnya 0 agar pie chart bersih
+        Object.keys(groups).forEach(key => {
+            if (groups[key] === 0) delete groups[key];
+        });
+
         return Object.entries(groups);
     }
 
@@ -729,16 +751,20 @@ function getGroups(data, filterType){
         
         data.forEach(item => {
             if(!item.tanggal) return;
-            const dateObj = new Date(item.tanggal);
-            if(!isNaN(dateObj)){
-                const key = `${monthNames[dateObj.getMonth()]} ${dateObj.getFullYear()}`;
-                monthlyData[key] = (monthlyData[key] || 0) + 1;
+            const parts = item.tanggal.split('-');
+            if(parts.length >= 2){
+                const year = parts[0];
+                const monthIndex = parseInt(parts[1], 10) - 1;
+                if(monthIndex >= 0 && monthIndex < 12){
+                    const key = `${monthNames[monthIndex]} ${year}`;
+                    monthlyData[key] = (monthlyData[key] || 0) + 1;
+                }
             }
         });
         return Object.entries(monthlyData);
     }
 
-    // Default: 'jenis' (Pengelompokan Jenis Pelanggaran via Jaro-Winkler)
+    // Default: 'jenis'
     const threshold=.70;
     data.forEach(item=>{
         const raw=(item.pelanggaran||'').trim();
@@ -762,7 +788,7 @@ function getGroups(data, filterType){
     return Object.entries(groups).sort((a,b)=>b[1]-a[1]);
 }
 
-// RENDER GRAFIK DINAMIS
+// RENDER GRAFIK DINAMIS (FULL FIX DARK MODE & PIE/LINE CHART)
 function updateChart(data){
     const filterType = document.getElementById('chart-filter')?.value || 'jenis';
     const sorted = getGroups(data, filterType);
@@ -777,15 +803,22 @@ function updateChart(data){
     const textColor = isDark ? '#f8fafc' : '#172033';
     const gridColor = isDark ? '#334155' : '#e5eaf0';
 
+    const lineColor = isDark ? '#60a5fa' : '#1261a0';
+    const lineBgColor = isDark ? 'rgba(96, 165, 250, 0.25)' : 'rgba(18, 97, 160, 0.2)';
+
     let chartType = 'bar';
     if(filterType === 'tingkat') chartType = 'pie';
     if(filterType === 'bulan') chartType = 'line';
 
     const colors = [
-        'rgba(255,99,132,.85)','rgba(54,162,235,.85)',
-        'rgba(255,206,86,.85)','rgba(75,192,192,.85)',
-        'rgba(153,102,255,.85)','rgba(255,159,64,.85)',
-        'rgba(46,204,113,.85)','rgba(231,76,60,.85)'
+        'rgba(54, 162, 235, 0.85)',
+        'rgba(255, 99, 132, 0.85)',
+        'rgba(255, 206, 86, 0.85)',
+        'rgba(75, 192, 192, 0.85)',
+        'rgba(153, 102, 255, 0.85)',
+        'rgba(255, 159, 64, 0.85)',
+        'rgba(46, 204, 113, 0.85)',
+        'rgba(231, 76, 60, 0.85)'
     ];
 
     myChart = new Chart(ctx, {
@@ -795,12 +828,15 @@ function updateChart(data){
             datasets: [{
                 label: 'Jumlah Kasus',
                 data: values.length ? values : [0],
-                backgroundColor: chartType === 'line' ? 'rgba(18,97,160,.2)' : colors,
-                borderColor: chartType === 'line' ? '#1261a0' : colors.map(c => c.replace('.85', '1')),
+                backgroundColor: chartType === 'line' ? lineBgColor : colors,
+                borderColor: chartType === 'line' ? lineColor : colors.map(c => c.replace('0.85', '1')),
                 borderWidth: 2,
                 fill: chartType === 'line',
                 tension: 0.3,
-                borderRadius: chartType === 'bar' ? 6 : 0
+                borderRadius: chartType === 'bar' ? 6 : 0,
+                pointRadius: chartType === 'line' ? 6 : 3,
+                pointHoverRadius: 8,
+                pointBackgroundColor: lineColor
             }]
         },
         options: {
@@ -809,7 +845,8 @@ function updateChart(data){
             plugins: {
                 legend: {
                     display: chartType === 'pie',
-                    labels: { color: textColor }
+                    position: 'bottom',
+                    labels: { color: textColor, font: { size: 12, weight: 'bold' } }
                 }
             },
             scales: chartType !== 'pie' ? {
@@ -1102,7 +1139,6 @@ async function simpanData(){
         await loadData();
         showPage('data');
         
-        // Pengecekan otomatis 3x pelanggaran langsung memicu pop-up WA
         await checkPelanggaranCountAndPrompt(nama, kelas);
 
     }catch(err){
@@ -1114,7 +1150,6 @@ async function simpanData(){
     }
 }
 
-// CETAK SURAT PANGGILAN MANUAL (Format A4 Standar Resmi)
 function cetakSuratPanggilan(namaSiswa, kelasSiswa) {
     const listSiswa = records.filter(r => (r.nama || '').trim().toLowerCase() === namaSiswa.trim().toLowerCase());
     const totalCount = listSiswa.length;
