@@ -8,6 +8,8 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<!-- SweetAlert2 untuk Notifikasi Popup Modern -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
 <style>
 :root{
@@ -24,6 +26,33 @@
     --border:#e5eaf0;
     --shadow:0 5px 18px rgba(20,50,80,.08);
 }
+
+/* Mode Gelap (Dark Mode) */
+body.dark-mode {
+    --bg: #0f172a;
+    --card: #1e293b;
+    --text: #f8fafc;
+    --muted: #94a3b8;
+    --border: #334155;
+    --shadow: 0 5px 18px rgba(0,0,0,.3);
+}
+body.dark-mode .app, 
+body.dark-mode .record, 
+body.dark-mode .stat, 
+body.dark-mode .access-card, 
+body.dark-mode .card,
+body.dark-mode .bottom-nav, 
+body.dark-mode .modal-box,
+body.dark-mode .drawer-box {
+    background: var(--card);
+    color: var(--text);
+}
+body.dark-mode input {
+    background: #0f172a;
+    color: #fff;
+    border-color: #334155;
+}
+
 *{box-sizing:border-box}
 html{scroll-behavior:smooth}
 body{
@@ -31,6 +60,7 @@ body{
     font-family:Arial,Helvetica,sans-serif;
     background:var(--bg);
     color:var(--text);
+    transition: background 0.3s, color 0.3s;
 }
 button,input{font:inherit}
 button{cursor:pointer}
@@ -60,8 +90,8 @@ button{cursor:pointer}
 }
 .brand{font-size:15px;font-weight:800;flex:1}
 .menu-btn{
-    border:0;background:transparent;color:#fff;font-size:25px;
-    padding:5px 8px;
+    border:0;background:transparent;color:#fff;font-size:22px;
+    padding:5px 8px;margin-left:4px;
 }
 .content{padding:18px 16px 90px}
 .page{display:none}
@@ -74,10 +104,12 @@ button{cursor:pointer}
     margin:0;color:var(--primary-dark);
     font-size:22px;line-height:1.2;
 }
+body.dark-mode .hero h1{ color: #60a5fa; }
 .hero h2{
     margin:7px 0 3px;color:var(--primary);
     font-size:17px;
 }
+body.dark-mode .hero h2{ color: #93c5fd; }
 .hero p{
     margin:0;color:var(--muted);font-weight:700;font-size:13px;
 }
@@ -120,6 +152,7 @@ button{cursor:pointer}
 .excel-btn{background:#1677b7}
 .danger-btn{background:var(--danger)}
 .secondary-btn{background:#edf1f5;color:#344054}
+body.dark-mode .secondary-btn{background:#334155;color:#f8fafc}
 .primary-btn:active,.success-btn:active,.excel-btn:active,.danger-btn:active{transform:scale(.99)}
 .section-title{
     font-size:17px;margin:22px 0 10px;
@@ -132,6 +165,9 @@ button{cursor:pointer}
     background:#fff8df;border:1px solid #f1df9d;
     color:#765b00;border-radius:10px;padding:11px;font-size:12px;
     margin-bottom:12px;
+}
+body.dark-mode .notice{
+    background:#423a1c;border-color:#635423;color:#ffe899;
 }
 .search{
     position:relative;margin-bottom:12px;
@@ -152,6 +188,7 @@ button{cursor:pointer}
 .record-date{font-size:11px;color:var(--muted);font-weight:700;margin-bottom:6px}
 .record-name{font-size:15px;font-weight:800;margin-bottom:5px}
 .record-meta{font-size:12px;color:#536070;line-height:1.7}
+body.dark-mode .record-meta{color:#94a3b8}
 .record-violation{
     font-size:12px;font-weight:800;color:var(--danger);
     margin-top:3px;
@@ -182,16 +219,6 @@ button{cursor:pointer}
 .form-actions{display:grid;gap:8px;margin-top:5px}
 .chart-card{padding:13px}
 .chart-box{height:330px;position:relative}
-.detail-photo{
-    width:100%;max-height:330px;object-fit:contain;
-    border-radius:10px;background:#f2f4f7;margin-top:10px;
-}
-.detail-row{
-    display:flex;gap:10px;padding:9px 0;border-bottom:1px solid #eef1f4;
-}
-.detail-row:last-child{border-bottom:0}
-.detail-key{width:105px;color:var(--muted);font-size:12px;font-weight:700}
-.detail-value{flex:1;font-size:13px;font-weight:700}
 .bottom-nav{
     position:fixed;left:50%;bottom:0;transform:translateX(-50%);
     width:min(1180px,100%);
@@ -200,12 +227,15 @@ button{cursor:pointer}
     z-index:60;box-shadow:0 -4px 15px rgba(0,0,0,.08);
 }
 .nav-btn{
-    border:0;background:#fff;color:#7c8794;
+    border:0;background:transparent;color:#7c8794;
     display:flex;flex-direction:column;align-items:center;justify-content:center;
     gap:3px;font-size:10px;font-weight:700;
 }
 .nav-btn span:first-child{font-size:19px}
 .nav-btn.active{color:var(--primary)}
+body.dark-mode .nav-btn.active{color:#60a5fa}
+
+/* MODAL & DRAWER */
 .modal{
     position:fixed;inset:0;background:rgba(13,28,43,.62);
     display:none;align-items:center;justify-content:center;
@@ -229,8 +259,31 @@ button{cursor:pointer}
 .password-toggle{
     position:absolute;right:10px;top:9px;border:0;background:transparent;font-size:18px;
 }
+
+/* SIDE MENU DRAWER (Garis 3) */
+.drawer-box {
+    position: absolute; right: 0; top: 0; bottom: 0;
+    width: min(280px, 80%); background: #fff;
+    padding: 20px; box-shadow: -5px 0 25px rgba(0,0,0,.2);
+    display: flex; flex-direction: column;
+}
+.drawer-header {
+    display: flex; justify-content: space-between; align-items: center;
+    border-bottom: 1px solid var(--border); padding-bottom: 10px; margin-bottom: 15px;
+}
+.drawer-header h3 { margin: 0; font-size: 16px; }
+.drawer-body { display: flex; flex-direction: column; gap: 8px; height: 100%; }
+.drawer-item {
+    display: flex; align-items: center; gap: 10px;
+    width: 100%; padding: 12px; border: 0; border-radius: 8px;
+    background: transparent; color: var(--text); font-weight: 700;
+    text-align: left;
+}
+.drawer-item:hover { background: var(--bg); }
+.drawer-divider { border: 0; border-top: 1px solid var(--border); margin: 8px 0; }
+
 .desktop-table{display:none}
-.footer-note{text-align:center;color:#98a2b3;font-size:10px;margin-top:22px}
+.footer-note{text-align:center;color:#98a2b3;font-size:11px;margin-top:22px;line-height:1.5}
 
 @media(min-width:700px){
     body{padding:20px}
@@ -245,6 +298,7 @@ button{cursor:pointer}
     .desktop-table{display:block;overflow-x:auto}
     table{width:100%;border-collapse:collapse}
     th,td{border:1px solid #ddd;padding:9px;text-align:center;font-size:12px}
+    body.dark-mode th, body.dark-mode td{border-color:#334155}
     th{background:var(--primary);color:#fff}
     td img{width:52px;height:52px;object-fit:cover;border-radius:6px}
     .desktop-only{display:block}
@@ -261,7 +315,8 @@ button{cursor:pointer}
 <header class="topbar">
     <div class="logo">🏫</div>
     <div class="brand">SMP GELORA BEKASI</div>
-    <button class="menu-btn" onclick="showPage('home')">☰</button>
+    <button id="theme-toggle" class="menu-btn" onclick="toggleTheme()" title="Ubah Mode Tampilan">🌙</button>
+    <button class="menu-btn" onclick="openMenu()">☰</button>
 </header>
 
 <main class="content">
@@ -316,6 +371,7 @@ button{cursor:pointer}
 
 <!-- TAMBAH -->
 <section id="page-form" class="page">
+    <input type="hidden" id="edit-id">
     <h2 class="section-title" style="margin-top:0" id="form-title">➕ Tambah Pelanggaran</h2>
 
     <div id="guest-notice" class="notice">🔒 Form hanya dapat digunakan oleh Admin. Silakan login terlebih dahulu.</div>
@@ -354,21 +410,17 @@ button{cursor:pointer}
 <section id="page-chart" class="page">
     <h2 class="section-title" style="margin-top:0">📊 Grafik Pelanggaran</h2>
     <div class="card chart-card">
-        <div style="font-size:12px;color:#667085;margin-bottom:10px">
+        <div style="font-size:12px;color:var(--muted);margin-bottom:10px">
             Otomatis dikelompokkan berdasarkan kemiripan kata.
         </div>
         <div class="chart-box"><canvas id="pelanggaranChart"></canvas></div>
     </div>
 </section>
 
-<!-- DETAIL -->
-<section id="page-detail" class="page">
-    <button class="secondary-btn" style="margin-bottom:12px" onclick="showPage('data')">← Kembali ke Data</button>
-    <h2 class="section-title" style="margin-top:0">Detail Data</h2>
-    <div class="card" id="detail-card"></div>
-</section>
-
-<div class="footer-note">Sistem Rekapitulasi Pelanggaran • SMP Gelora Bekasi</div>
+<div class="footer-note">
+    Sistem Rekapitulasi Pelanggaran • SMP Gelora Bekasi<br>
+    <span style="font-weight: bold; color: var(--primary);">Licensed By: Charly Caknan</span>
+</div>
 </main>
 
 <nav class="bottom-nav">
@@ -395,6 +447,36 @@ button{cursor:pointer}
     </div>
 </div>
 
+<!-- SIDEBAR MENU (DRAWER GARIS 3) -->
+<div id="side-menu" class="modal" onclick="if(event.target===this)closeMenu()">
+    <div class="drawer-box">
+        <div class="drawer-header">
+            <h3>Menu Utama</h3>
+            <button class="modal-close" onclick="closeMenu()">×</button>
+        </div>
+        <div class="drawer-body">
+            <button class="drawer-item" onclick="closeMenu(); toggleAdminAuth();">
+                <span id="drawer-auth-icon">🔑</span> <span id="drawer-auth-text">Login Admin</span>
+            </button>
+            <button class="drawer-item" onclick="closeMenu(); toggleTheme();">
+                <span>🌓</span> Ganti Mode Tampilan
+            </button>
+            <button class="drawer-item" onclick="closeMenu(); exportToExcel();">
+                <span>📗</span> Export Data ke Excel
+            </button>
+            <hr class="drawer-divider">
+            <button class="drawer-item" onclick="closeMenu(); showAbout();">
+                <span>ℹ️</span> Tentang Aplikasi
+            </button>
+
+            <div style="margin-top: auto; padding-top: 15px; text-align: center; font-size: 11px; color: var(--muted); border-top: 1px dashed var(--border);">
+                Licensed By:<br>
+                <strong style="color: var(--primary); font-size: 13px;">Charly Caknan</strong>
+            </div>
+        </div>
+    </div>
+</div>
+
 <audio id="bg-music" loop preload="none">
     <source src="https://pdhraphbbdjsabhiokgo.supabase.co/storage/v1/object/public/Sound/Raiso%20Ngapusi%20-%20La%20Tasya%20Feat.%20Aryan%20Tekomlaku%20(HIPHOP%20DANGDUT%20VERSION).mp3" type="audio/mpeg">
 </audio>
@@ -404,8 +486,6 @@ const SUPABASE_URL = "https://pdhraphbbdjsabhiokgo.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBkaHJhcGhiYmRqc2FiaGlva2dvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkyODMxODUsImV4cCI6MjEwNDg1OTE4NX0.FesFprS6pIbuz1x2YDOw1rKdvjgirWRBt3sPrR5EhpY";
 const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-// CATATAN: ini masih mempertahankan sistem password dari kode asli.
-// Untuk keamanan produksi, sebaiknya nanti dipindahkan ke Supabase Auth + RLS.
 const ADMIN_PASSWORD = "admin123";
 
 let isAdmin = localStorage.getItem('is_admin_logged_in') === 'true';
@@ -413,6 +493,39 @@ let records = [];
 let myChart = null;
 
 document.getElementById('tanggal').value = new Date().toISOString().split('T')[0];
+
+// DARK MODE FUNGSI
+function toggleTheme() {
+    document.body.classList.toggle('dark-mode');
+    const isDark = document.body.classList.contains('dark-mode');
+    document.getElementById('theme-toggle').textContent = isDark ? '☀️' : '🌙';
+    localStorage.setItem('theme', isDark ? 'dark' : 'light');
+    if(myChart) updateChart(records);
+}
+
+if (localStorage.getItem('theme') === 'dark') {
+    document.body.classList.add('dark-mode');
+    document.getElementById('theme-toggle').textContent = '☀️';
+}
+
+// SIDEBAR FUNGSI
+function openMenu() {
+    document.getElementById('drawer-auth-text').textContent = isAdmin ? 'Logout Admin' : 'Login Admin';
+    document.getElementById('drawer-auth-icon').textContent = isAdmin ? '🔒' : '🔑';
+    document.getElementById('side-menu').classList.add('show');
+}
+function closeMenu() {
+    document.getElementById('side-menu').classList.remove('show');
+}
+function showAbout() {
+    Swal.fire({
+        title: 'SMP Gelora Bekasi',
+        html: '<p>Sistem Rekapitulasi Pelanggaran Siswa v2.0</p>' +
+              '<p style="margin-top: 10px; font-weight: bold; color: #1261a0;">Licensed By: Charly Caknan</p>',
+        icon: 'info',
+        confirmButtonColor: '#1261a0'
+    });
+}
 
 function showPage(page){
     document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
@@ -431,8 +544,12 @@ function showPage(page){
 
 function openForm(){
     if(!isAdmin){
-        alert("Fitur tambah data hanya untuk Admin.");
-        openLogin();
+        Swal.fire({
+            icon: 'warning',
+            title: 'Akses Terbatas',
+            text: 'Fitur tambah data hanya dapat digunakan oleh Admin.',
+            confirmButtonColor: '#1261a0'
+        }).then(() => openLogin());
         return;
     }
     showPage('form');
@@ -450,6 +567,7 @@ function togglePassword(){
     const el=document.getElementById('admin-password');
     el.type=el.type==='password'?'text':'password';
 }
+
 function loginAdmin(){
     const password=document.getElementById('admin-password').value;
     if(password === ADMIN_PASSWORD){
@@ -457,17 +575,35 @@ function loginAdmin(){
         localStorage.setItem('is_admin_logged_in','true');
         closeLogin();
         updateAdminUI();
-        alert("Berhasil masuk sebagai Admin!");
+        Swal.fire({
+            icon: 'success',
+            title: 'Berhasil Login!',
+            text: 'Anda masuk sebagai Admin.',
+            timer: 1500,
+            showConfirmButton: false
+        });
     }else{
-        alert("Kata sandi salah!");
+        Swal.fire({
+            icon: 'error',
+            title: 'Gagal Login',
+            text: 'Kata sandi yang Anda masukkan salah!',
+            confirmButtonColor: '#e53935'
+        });
     }
 }
+
 function toggleAdminAuth(){
     if(isAdmin){
         isAdmin=false;
         localStorage.removeItem('is_admin_logged_in');
         updateAdminUI();
-        alert("Anda telah keluar dari Mode Admin.");
+        Swal.fire({
+            icon: 'info',
+            title: 'Logout',
+            text: 'Anda telah keluar dari Mode Admin.',
+            timer: 1500,
+            showConfirmButton: false
+        });
     }else openLogin();
 }
 
@@ -589,6 +725,10 @@ function updateChart(data){
     if(!ctx)return;
     if(myChart)myChart.destroy();
 
+    const isDark = document.body.classList.contains('dark-mode');
+    const textColor = isDark ? '#f8fafc' : '#172033';
+    const gridColor = isDark ? '#334155' : '#e5eaf0';
+
     myChart=new Chart(ctx,{
         type:'bar',
         data:{
@@ -610,8 +750,15 @@ function updateChart(data){
             responsive:true,maintainAspectRatio:false,
             plugins:{legend:{display:false}},
             scales:{
-                y:{beginAtZero:true,ticks:{stepSize:1,precision:0}},
-                x:{ticks:{autoSkip:false,maxRotation:45,minRotation:0}}
+                y:{
+                    beginAtZero:true,
+                    ticks:{stepSize:1,precision:0,color:textColor},
+                    grid:{color:gridColor}
+                },
+                x:{
+                    ticks:{autoSkip:false,maxRotation:45,minRotation:0,color:textColor},
+                    grid:{color:gridColor}
+                }
             }
         }
     });
@@ -632,7 +779,7 @@ function renderRecent(){
 function recordCard(item){
     const photo=item.foto_url
         ? `<a href="${escapeAttr(item.foto_url)}" target="_blank"><img class="record-photo" src="${escapeAttr(item.foto_url)}"></a>`
-        : `<div class="record-photo" style="display:flex;align-items:center;justify-content:center;background:#f1f3f5">📷</div>`;
+        : `<div class="record-photo" style="display:flex;align-items:center;justify-content:center;background:var(--border)">📷</div>`;
 
     const actions=isAdmin?`
         <div class="actions">
@@ -737,9 +884,9 @@ async function loadData(){
     if(error){
         console.error("Supabase error:", error);
         if ((error.message || "").toLowerCase().includes("invalid api key")) {
-            alert("API KEY SUPABASE DITOLAK. Key pada file sudah diisi, tetapi key tersebut kemungkinan sudah dicabut/diganti di project Supabase. Ambil key terbaru dari Supabase Dashboard lalu ganti SUPABASE_KEY.");
+            Swal.fire('API Key Error', 'Key Supabase dicabut/diganti. Ambil key terbaru dari Supabase Dashboard.', 'error');
         } else {
-            alert('Gagal mengambil data: '+error.message);
+            Swal.fire('Error Data', 'Gagal mengambil data: '+error.message, 'error');
         }
         return;
     }
@@ -749,7 +896,7 @@ async function loadData(){
 }
 
 async function simpanData(){
-    if(!isAdmin)return alert('Akses Ditolak: hanya Admin.');
+    if(!isAdmin) return Swal.fire('Akses Ditolak', 'Hanya Admin yang dapat menyimpan data.', 'error');
 
     const editId=document.getElementById('edit-id')?.value||'';
     const tanggal=document.getElementById('tanggal').value;
@@ -760,7 +907,7 @@ async function simpanData(){
     const btn=document.getElementById('btn-save');
 
     if(!nama||!kelas||!pelanggaran){
-        return alert('Nama, Kelas, dan Pelanggaran wajib diisi!');
+        return Swal.fire('Form Inkomplit', 'Nama, Kelas, dan Pelanggaran wajib diisi!', 'warning');
     }
 
     btn.disabled=true;
@@ -793,13 +940,13 @@ async function simpanData(){
             const {error} = await _supabase.from('pelanggaran')
                 .update(payload).eq('id',editId);
             if(error)throw error;
-            alert('Data berhasil diperbarui!');
+            Swal.fire('Tersimpan', 'Data berhasil diperbarui!', 'success');
         }else{
             const {error}=await _supabase.from('pelanggaran').insert([{
                 tanggal,nama,kelas,pelanggaran,foto_url:fotoUrl
             }]);
             if(error)throw error;
-            alert('Data berhasil disimpan!');
+            Swal.fire('Tersimpan', 'Data berhasil disimpan!', 'success');
         }
 
         batalEdit();
@@ -807,7 +954,7 @@ async function simpanData(){
         showPage('data');
     }catch(err){
         console.error(err);
-        alert('Gagal menyimpan data: '+err.message);
+        Swal.fire('Gagal', 'Gagal menyimpan data: '+err.message, 'error');
     }finally{
         btn.disabled=!isAdmin;
         btn.textContent='💾 Simpan Data';
@@ -815,7 +962,7 @@ async function simpanData(){
 }
 
 function editData(id){
-    if(!isAdmin)return alert('Akses Ditolak!');
+    if(!isAdmin) return Swal.fire('Akses Ditolak', 'Hanya Admin yang dapat mengubah data.', 'error');
     const item=records.find(r=>r.id===id);
     if(!item)return;
 
@@ -845,8 +992,20 @@ function batalEdit(){
 }
 
 async function hapusData(id){
-    if(!isAdmin)return alert('Akses Ditolak!');
-    if(!confirm('Apakah Anda yakin ingin menghapus data ini?'))return;
+    if(!isAdmin) return Swal.fire('Akses Ditolak', 'Hanya Admin yang dapat menghapus data.', 'error');
+
+    const result = await Swal.fire({
+        title: 'Konfirmasi Hapus',
+        text: 'Apakah Anda yakin ingin menghapus data ini?',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#e53935',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: 'Ya, Hapus!',
+        cancelButtonText: 'Batal'
+    });
+
+    if(!result.isConfirmed) return;
 
     const item=records.find(r=>r.id===id);
 
@@ -861,16 +1020,16 @@ async function hapusData(id){
         const {error}=await _supabase.from('pelanggaran').delete().eq('id',id);
         if(error)throw error;
 
-        alert('Data berhasil dihapus!');
+        Swal.fire('Terhapus!', 'Data berhasil dihapus.', 'success');
         await loadData();
     }catch(err){
         console.error(err);
-        alert('Gagal menghapus data: '+err.message);
+        Swal.fire('Gagal', 'Gagal menghapus data: '+err.message, 'error');
     }
 }
 
 async function exportToExcel(){
-    if(!records.length)return alert('Tidak ada data untuk diexport!');
+    if(!records.length) return Swal.fire('Kosong', 'Tidak ada data untuk diexport!', 'info');
 
     try{
         const workbook=new ExcelJS.Workbook();
@@ -933,11 +1092,10 @@ async function exportToExcel(){
         URL.revokeObjectURL(url);
     }catch(err){
         console.error(err);
-        alert('Terjadi kesalahan saat export: '+err.message);
+        Swal.fire('Export Gagal', 'Terjadi kesalahan saat export: '+err.message, 'error');
     }
 }
 
-// Musik mulai setelah interaksi pertama.
 function playAudioOnInteraction(){
     const audio=document.getElementById('bg-music');
     audio.volume=.2;
