@@ -135,7 +135,7 @@ body.dark-mode .hero h2{ color: #93c5fd; }
     box-shadow:var(--shadow);
 }
 .access-line{
-    display:flex;align-items:center;justify-content:space-between;
+    display:flex;align-items:center;justify-space-between;
     gap:8px;margin-bottom:10px;font-size:12px;font-weight:700;
 }
 .badge{
@@ -213,11 +213,11 @@ body.dark-mode .record-meta{color:#94a3b8}
 .form-group label{
     display:block;font-weight:800;font-size:13px;margin-bottom:6px;
 }
-.form-group input{
+.form-group input, .form-group select{
     width:100%;padding:11px;border:1px solid #ccd6e0;
     border-radius:9px;outline:none;background:#fff;
 }
-.form-group input:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(18,97,160,.1)}
+.form-group input:focus, .form-group select:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(18,97,160,.1)}
 .file-note{font-size:11px;color:var(--muted);font-weight:normal}
 .form-actions{display:grid;gap:8px;margin-top:5px}
 .chart-card{padding:13px}
@@ -409,12 +409,18 @@ body.dark-mode .nav-btn.active{color:#60a5fa}
     </div>
 </section>
 
-<!-- GRAFIK -->
+<!-- GRAFIK (PILIHAN FILTER MULTI-VISUALISASI) -->
 <section id="page-chart" class="page">
     <h2 class="section-title" style="margin-top:0">📊 Grafik Pelanggaran</h2>
     <div class="card chart-card">
-        <div style="font-size:12px;color:var(--muted);margin-bottom:10px">
-            Otomatis dikelompokkan berdasarkan kemiripan kata.
+        <div class="form-group" style="margin-bottom:12px;">
+            <label for="chart-filter">Tampilkan Grafik Berdasarkan:</label>
+            <select id="chart-filter" onchange="updateChart(records)">
+                <option value="jenis">⚠️ Jenis Pelanggaran</option>
+                <option value="kelas">🏫 Per Kelas (7A, 7B, 8A, dst)</option>
+                <option value="tingkat">🎓 Per Tingkat (Kelas 7, 8, & 9)</option>
+                <option value="bulan">📅 Tren Per Bulan</option>
+            </select>
         </div>
         <div class="chart-box"><canvas id="pelanggaranChart"></canvas></div>
     </div>
@@ -653,7 +659,7 @@ function updateStats(){
     document.getElementById('stat-students').textContent=students.size;
 }
 
-// JARO-WINKLER
+// JARO-WINKLER SIMILARITY
 function getSimilarity(s1,s2){
     s1=s1.toLowerCase().trim();
     s2=s2.toLowerCase().trim();
@@ -693,10 +699,47 @@ function getSimilarity(s1,s2){
     return jaro+prefix*.1*(1-jaro);
 }
 
-function getGroups(data){
-    const groups={};
-    const threshold=.70;
+// PEMBAGIAN KELOMPOK DATA GRAFIK DENGAN DIVERSIFIKASI
+function getGroups(data, filterType){
+    const groups = {};
 
+    if(filterType === 'kelas'){
+        data.forEach(item => {
+            const k = (item.kelas || 'Tanpa Kelas').toUpperCase().trim();
+            groups[k] = (groups[k] || 0) + 1;
+        });
+        return Object.entries(groups).sort((a,b)=>a[0].localeCompare(b[0]));
+    }
+
+    if(filterType === 'tingkat'){
+        data.forEach(item => {
+            const k = (item.kelas || '').trim();
+            let tk = 'Lainnya';
+            if (k.startsWith('7')) tk = 'Kelas 7';
+            else if (k.startsWith('8')) tk = 'Kelas 8';
+            else if (k.startsWith('9')) tk = 'Kelas 9';
+            groups[tk] = (groups[tk] || 0) + 1;
+        });
+        return Object.entries(groups);
+    }
+
+    if(filterType === 'bulan'){
+        const monthNames = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agt", "Sep", "Okt", "Nov", "Des"];
+        const monthlyData = {};
+        
+        data.forEach(item => {
+            if(!item.tanggal) return;
+            const dateObj = new Date(item.tanggal);
+            if(!isNaN(dateObj)){
+                const key = `${monthNames[dateObj.getMonth()]} ${dateObj.getFullYear()}`;
+                monthlyData[key] = (monthlyData[key] || 0) + 1;
+            }
+        });
+        return Object.entries(monthlyData);
+    }
+
+    // Default: 'jenis' (Pengelompokan Jenis Pelanggaran via Jaro-Winkler)
+    const threshold=.70;
     data.forEach(item=>{
         const raw=(item.pelanggaran||'').trim();
         if(!raw)return;
@@ -719,12 +762,14 @@ function getGroups(data){
     return Object.entries(groups).sort((a,b)=>b[1]-a[1]);
 }
 
+// RENDER GRAFIK DINAMIS
 function updateChart(data){
-    const sorted=getGroups(data);
-    const labels=sorted.map(x=>x[0]);
-    const values=sorted.map(x=>x[1]);
+    const filterType = document.getElementById('chart-filter')?.value || 'jenis';
+    const sorted = getGroups(data, filterType);
+    const labels = sorted.map(x=>x[0]);
+    const values = sorted.map(x=>x[1]);
 
-    const ctx=document.getElementById('pelanggaranChart');
+    const ctx = document.getElementById('pelanggaranChart');
     if(!ctx)return;
     if(myChart)myChart.destroy();
 
@@ -732,37 +777,52 @@ function updateChart(data){
     const textColor = isDark ? '#f8fafc' : '#172033';
     const gridColor = isDark ? '#334155' : '#e5eaf0';
 
-    myChart=new Chart(ctx,{
-        type:'bar',
-        data:{
-            labels:labels.length?labels:['Belum Ada Data'],
-            datasets:[{
-                label:'Jumlah Kasus',
-                data:values.length?values:[0],
-                backgroundColor:[
-                    'rgba(255,99,132,.82)','rgba(54,162,235,.82)',
-                    'rgba(255,206,86,.82)','rgba(75,192,192,.82)',
-                    'rgba(153,102,255,.82)','rgba(255,159,64,.82)',
-                    'rgba(46,204,113,.82)','rgba(231,76,60,.82)'
-                ],
-                borderWidth:1.5,
-                borderRadius:6
+    let chartType = 'bar';
+    if(filterType === 'tingkat') chartType = 'pie';
+    if(filterType === 'bulan') chartType = 'line';
+
+    const colors = [
+        'rgba(255,99,132,.85)','rgba(54,162,235,.85)',
+        'rgba(255,206,86,.85)','rgba(75,192,192,.85)',
+        'rgba(153,102,255,.85)','rgba(255,159,64,.85)',
+        'rgba(46,204,113,.85)','rgba(231,76,60,.85)'
+    ];
+
+    myChart = new Chart(ctx, {
+        type: chartType,
+        data: {
+            labels: labels.length ? labels : ['Belum Ada Data'],
+            datasets: [{
+                label: 'Jumlah Kasus',
+                data: values.length ? values : [0],
+                backgroundColor: chartType === 'line' ? 'rgba(18,97,160,.2)' : colors,
+                borderColor: chartType === 'line' ? '#1261a0' : colors.map(c => c.replace('.85', '1')),
+                borderWidth: 2,
+                fill: chartType === 'line',
+                tension: 0.3,
+                borderRadius: chartType === 'bar' ? 6 : 0
             }]
         },
-        options:{
-            responsive:true,maintainAspectRatio:false,
-            plugins:{legend:{display:false}},
-            scales:{
-                y:{
-                    beginAtZero:true,
-                    ticks:{stepSize:1,precision:0,color:textColor},
-                    grid:{color:gridColor}
-                },
-                x:{
-                    ticks:{autoSkip:false,maxRotation:45,minRotation:0,color:textColor},
-                    grid:{color:gridColor}
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: chartType === 'pie',
+                    labels: { color: textColor }
                 }
-            }
+            },
+            scales: chartType !== 'pie' ? {
+                y: {
+                    beginAtZero: true,
+                    ticks: { stepSize: 1, precision: 0, color: textColor },
+                    grid: { color: gridColor }
+                },
+                x: {
+                    ticks: { autoSkip: false, maxRotation: 45, minRotation: 0, color: textColor },
+                    grid: { color: gridColor }
+                }
+            } : {}
         }
     });
 }
