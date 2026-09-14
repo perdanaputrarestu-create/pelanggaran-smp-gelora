@@ -47,7 +47,7 @@ body.dark-mode .drawer-box {
     background: var(--card);
     color: var(--text);
 }
-body.dark-mode input {
+body.dark-mode input, body.dark-mode select {
     background: #0f172a;
     color: #fff;
     border-color: #334155;
@@ -62,7 +62,7 @@ body{
     color:var(--text);
     transition: background 0.3s, color 0.3s;
 }
-button,input{font:inherit}
+button,input,select{font:inherit}
 button{cursor:pointer}
 .app{
     width:min(1180px,100%);
@@ -143,7 +143,7 @@ body.dark-mode .hero h2{ color: #93c5fd; }
 }
 .badge.guest{background:#6c757d}
 .badge.admin{background:var(--success)}
-.primary-btn,.success-btn,.excel-btn,.danger-btn,.secondary-btn{
+.primary-btn,.success-btn,.excel-btn,.danger-btn,.secondary-btn,.wa-btn{
     width:100%;border:0;border-radius:9px;padding:12px 14px;
     font-weight:800;color:#fff;
 }
@@ -151,9 +151,10 @@ body.dark-mode .hero h2{ color: #93c5fd; }
 .success-btn{background:var(--success)}
 .excel-btn{background:#1677b7}
 .danger-btn{background:var(--danger)}
+.wa-btn{background:#25d366; color:#fff}
 .secondary-btn{background:#edf1f5;color:#344054}
 body.dark-mode .secondary-btn{background:#334155;color:#f8fafc}
-.primary-btn:active,.success-btn:active,.excel-btn:active,.danger-btn:active{transform:scale(.99)}
+.primary-btn:active,.success-btn:active,.excel-btn:active,.danger-btn:active,.wa-btn:active{transform:scale(.99)}
 .section-title{
     font-size:17px;margin:22px 0 10px;
 }
@@ -198,11 +199,13 @@ body.dark-mode .record-meta{color:#94a3b8}
     border:1px solid var(--border);
 }
 .actions{grid-column:1/-1;display:grid;grid-template-columns:1fr 1fr;gap:7px}
-.edit-btn,.delete-btn{
-    border:0;border-radius:8px;padding:8px;font-weight:800;font-size:12px;
+.edit-btn,.delete-btn,.print-btn,.notify-btn{
+    border:0;border-radius:8px;padding:8px;font-weight:800;font-size:11px;
 }
 .edit-btn{background:#ffd34d;color:#493900}
 .delete-btn{background:#ffe0df;color:#b42318}
+.print-btn{background:#e0f2fe;color:#0369a1}
+.notify-btn{background:#dcfce7;color:#15803d}
 .empty{
     text-align:center;color:#8a94a3;padding:30px 10px;
 }
@@ -783,6 +786,8 @@ function recordCard(item){
 
     const actions=isAdmin?`
         <div class="actions">
+            <button class="notify-btn" onclick="kirimWhatsAppManual('${escapeAttr(item.nama)}', '${escapeAttr(item.kelas)}')">💬 Beritahu Wali</button>
+            <button class="print-btn" onclick="cetakSuratPanggilan('${escapeAttr(item.nama)}', '${escapeAttr(item.kelas)}')">🖨️ Cetak</button>
             <button class="edit-btn" onclick="editData(${item.id})">✏️ Edit</button>
             <button class="delete-btn" onclick="hapusData(${item.id})">🗑 Hapus</button>
         </div>`:'';
@@ -823,7 +828,12 @@ function renderTable(data=records){
             <td>${escapeHtml(item.kelas||'-')}</td>
             <td>${escapeHtml(item.pelanggaran||'-')}</td>
             <td>${item.foto_url?`<a href="${escapeAttr(item.foto_url)}" target="_blank"><img src="${escapeAttr(item.foto_url)}"></a>`:'-'}</td>
-            <td>${isAdmin?`<button class="edit-btn" onclick="editData(${item.id})">Edit</button><button class="delete-btn" onclick="hapusData(${item.id})">Hapus</button>`:'-'}</td>
+            <td>${isAdmin?`
+                <button class="notify-btn" onclick="kirimWhatsAppManual('${escapeAttr(item.nama)}', '${escapeAttr(item.kelas)}')">💬 WA Wali</button>
+                <button class="print-btn" onclick="cetakSuratPanggilan('${escapeAttr(item.nama)}', '${escapeAttr(item.kelas)}')">Cetak</button>
+                <button class="edit-btn" onclick="editData(${item.id})">Edit</button>
+                <button class="delete-btn" onclick="hapusData(${item.id})">Hapus</button>
+            `:'-'}</td>
         `;
         tbody.appendChild(tr);
     });
@@ -895,6 +905,85 @@ async function loadData(){
     updateChart(records);
 }
 
+// FUNGSI NOTIFIKASI MANUAL WA WALI KELAS / WALI MURID
+async function kirimWhatsAppManual(namaSiswa, kelasSiswa) {
+    const listSiswa = records.filter(r => (r.nama || '').trim().toLowerCase() === namaSiswa.trim().toLowerCase());
+    const totalCount = listSiswa.length;
+
+    const result = await Swal.fire({
+        title: '📱 Beritahu Wali Kelas/Murid',
+        html: `<p>Kirim pemberitahuan catatan pelanggaran siswa <strong>${escapeHtml(namaSiswa)}</strong> (${escapeHtml(kelasSiswa)}) ke WhatsApp.</p>`,
+        icon: 'question',
+        input: 'text',
+        inputLabel: 'Masukkan Nomor WA Tujuan (Wali Murid / Wali Kelas):',
+        inputPlaceholder: 'Contoh: 081234567890',
+        showCancelButton: true,
+        confirmButtonText: '📲 Kirim via WhatsApp',
+        cancelButtonText: 'Batal',
+        confirmButtonColor: '#25d366',
+        cancelButtonColor: '#6c757d',
+        inputValidator: (value) => {
+            if (!value) {
+                return 'Nomor WhatsApp wajib diisi!';
+            }
+        }
+    });
+
+    if (result.isConfirmed && result.value) {
+        let phone = result.value.trim().replace(/[^0-9]/g, '');
+        if (phone.startsWith('0')) {
+            phone = '62' + phone.slice(1);
+        }
+
+        const daftarPelanggaran = listSiswa.map((item, idx) => `${idx + 1}. ${item.pelanggaran} (${item.tanggal})`).join('\n');
+        
+        const message = `Yth. Bapak/Ibu Wali Murid / Wali Kelas dari *${namaSiswa}* (${kelasSiswa}).\n\nBerikut menginformasikan catatan pelanggaran siswa di SMP Gelora Bekasi:\n*Total Pelanggaran:* ${totalCount} kali\n\nRiwayat Pelanggaran:\n${daftarPelanggaran}\n\nMohon untuk dilakukan pembinaan dan pendampingan bersama.\n\nTerima kasih.\n*SMP Gelora Bekasi*`;
+
+        window.open(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`, '_blank');
+    }
+}
+
+// FUNGSI CEK OTOMATIS 3X PELANGGARAN TERPANGGIL POPUP WA
+async function checkPelanggaranCountAndPrompt(namaSiswa, kelasSiswa) {
+    const listSiswa = records.filter(r => (r.nama || '').trim().toLowerCase() === namaSiswa.trim().toLowerCase());
+    const totalCount = listSiswa.length;
+
+    if (totalCount >= 3) {
+        const result = await Swal.fire({
+            title: '⚠️ PERINGATAN PELANGGARAN 3X',
+            html: `<p>Siswa <strong>${escapeHtml(namaSiswa)}</strong> (${escapeHtml(kelasSiswa)}) telah mencapai <strong>${totalCount}x pelanggaran</strong>!</p>
+                   <p style="font-size:13px; color:#555;">Sistem mendeteksi ambang batas 3x pelanggaran. Kirim Surat Panggilan Orang Tua ke WhatsApp sekarang?</p>`,
+            icon: 'warning',
+            input: 'text',
+            inputLabel: 'Masukkan Nomor WhatsApp Ortu/Wali:',
+            inputPlaceholder: 'Contoh: 081234567890',
+            showCancelButton: true,
+            confirmButtonText: '📲 Kirim Surat Panggilan via WA',
+            cancelButtonText: 'Nanti Saja',
+            confirmButtonColor: '#25d366',
+            cancelButtonColor: '#6c757d',
+            inputValidator: (value) => {
+                if (!value) {
+                    return 'Nomor WhatsApp wajib diisi!';
+                }
+            }
+        });
+
+        if (result.isConfirmed && result.value) {
+            let phone = result.value.trim().replace(/[^0-9]/g, '');
+            if (phone.startsWith('0')) {
+                phone = '62' + phone.slice(1);
+            }
+
+            const daftarPelanggaran = listSiswa.map((item, idx) => `${idx + 1}. ${item.pelanggaran} (${item.tanggal})`).join('\n');
+            
+            const message = `Yth. Bapak/Ibu Orang Tua/Wali dari *${namaSiswa}* (${kelasSiswa}).\n\nBermaksud menginformasikan bahwa siswa tersebut telah mencapai *${totalCount} kali pelanggaran* di SMP Gelora Bekasi.\n\nRiwayat Pelanggaran:\n${daftarPelanggaran}\n\nSehubungan dengan hal tersebut, kami mengundang Bapak/Ibu hadir ke sekolah untuk bimbingan konseling.\n\nTerima kasih.\n*SMP Gelora Bekasi*`;
+
+            window.open(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`, '_blank');
+        }
+    }
+}
+
 async function simpanData(){
     if(!isAdmin) return Swal.fire('Akses Ditolak', 'Hanya Admin yang dapat menyimpan data.', 'error');
 
@@ -952,6 +1041,10 @@ async function simpanData(){
         batalEdit();
         await loadData();
         showPage('data');
+        
+        // Pengecekan otomatis 3x pelanggaran langsung memicu pop-up WA
+        await checkPelanggaranCountAndPrompt(nama, kelas);
+
     }catch(err){
         console.error(err);
         Swal.fire('Gagal', 'Gagal menyimpan data: '+err.message, 'error');
@@ -959,6 +1052,163 @@ async function simpanData(){
         btn.disabled=!isAdmin;
         btn.textContent='💾 Simpan Data';
     }
+}
+
+// CETAK SURAT PANGGILAN MANUAL (Format A4 Standar Resmi)
+function cetakSuratPanggilan(namaSiswa, kelasSiswa) {
+    const listSiswa = records.filter(r => (r.nama || '').trim().toLowerCase() === namaSiswa.trim().toLowerCase());
+    const totalCount = listSiswa.length;
+    const tgl = new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+
+    let tabelPelanggaranHtml = listSiswa.map((item, idx) => `
+        <tr>
+            <td style="border:1px solid #000; padding:8px; text-align:center;">${idx + 1}</td>
+            <td style="border:1px solid #000; padding:8px; text-align:center;">${item.tanggal || '-'}</td>
+            <td style="border:1px solid #000; padding:8px;">${item.pelanggaran || '-'}</td>
+        </tr>
+    `).join('');
+
+    const windowCetak = window.open('', '', 'width=900,height=800');
+    windowCetak.document.write(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Surat Panggilan Orang Tua - ${escapeHtml(namaSiswa)}</title>
+            <style>
+                @page {
+                    size: A4 portrait;
+                    margin: 20mm;
+                }
+                body {
+                    font-family: 'Times New Roman', Times, serif;
+                    font-size: 12pt;
+                    line-height: 1.5;
+                    color: #000;
+                    margin: 0;
+                    padding: 0;
+                }
+                .kop-surat {
+                    text-align: center;
+                    border-bottom: 3px double #000;
+                    padding-bottom: 8px;
+                    margin-bottom: 20px;
+                }
+                .kop-surat h2 {
+                    margin: 0;
+                    font-size: 16pt;
+                    font-weight: bold;
+                    text-transform: uppercase;
+                }
+                .kop-surat p {
+                    margin: 2px 0;
+                    font-size: 10pt;
+                }
+                .judul-surat {
+                    text-align: center;
+                    margin: 20px 0 15px;
+                }
+                .judul-surat h4 {
+                    margin: 0;
+                    font-size: 13pt;
+                    text-decoration: underline;
+                    text-transform: uppercase;
+                }
+                .judul-surat p {
+                    margin: 2px 0 0;
+                    font-size: 11pt;
+                }
+                .content {
+                    text-align: justify;
+                }
+                .table-data, .table-info {
+                    width: 100%;
+                    border-collapse: collapse;
+                    margin: 12px 0;
+                }
+                .table-data td {
+                    padding: 4px 0;
+                    vertical-align: top;
+                }
+                .table-info th, .table-info td {
+                    border: 1px solid #000;
+                    font-size: 11pt;
+                }
+                .table-info th {
+                    background-color: #f2f2f2;
+                    padding: 8px;
+                    text-align: center;
+                }
+                .ttd-wrapper {
+                    margin-top: 40px;
+                    float: right;
+                    width: 250px;
+                    text-align: center;
+                }
+                .clear { clear: both; }
+            </style>
+        </head>
+        <body>
+            <div class="kop-surat">
+                <h2>SMP GELORA BEKASI</h2>
+                <p>Jl. Raya Kp. Irian, RT.003/RW.003, Tlk. Pucung, Kec. Bekasi Utara, Kota Bks, Jawa Barat 17121</p>
+                <p>Telp: (021) 88985463</p>
+            </div>
+
+            <div class="judul-surat">
+                <h4>Surat Panggilan Orang Tua / Wali Siswa</h4>
+                <p>Nomor: 421.3 / BP-BK / ${new Date().getFullYear()}</p>
+            </div>
+            
+            <div class="content">
+                <p>Kepada Yth.<br>Bapak / Ibu / Wali Murid dari <strong>${escapeHtml(namaSiswa)}</strong><br>Di Tempat</p>
+                
+                <p>Dengan hormat,</p>
+                <p>Sehubungan dengan catatan tata tertib sekolah, kami menginformasikan bahwa siswa tersebut di bawah ini telah mencapai <strong>${totalCount} kali pelanggaran</strong>:</p>
+                
+                <table class="table-data">
+                    <tr><td width="140"><strong>Nama Siswa</strong></td><td width="15">:</td><td>${escapeHtml(namaSiswa)}</td></tr>
+                    <tr><td><strong>Kelas</strong></td><td>:</td><td>${escapeHtml(kelasSiswa)}</td></tr>
+                </table>
+
+                <p><strong>Rincian Riwayat Pelanggaran:</strong></p>
+                <table class="table-info">
+                    <thead>
+                        <tr>
+                            <th width="40">No</th>
+                            <th width="130">Tanggal</th>
+                            <th>Jenis Pelanggaran</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${tabelPelanggaranHtml}
+                    </tbody>
+                </table>
+                
+                <p>Maka dari itu, kami mengharapkan kehadiran Bapak/Ibu/Wali Siswa ke sekolah pada:</p>
+                <table class="table-data" style="margin-left: 20px;">
+                    <tr><td width="120">Hari / Tanggal</td><td width="15">:</td><td>.......................................................</td></tr>
+                    <tr><td>Waktu</td><td>:</td><td>08.00 WIB – Selesai</td></tr>
+                    <tr><td>Tempat</td><td>:</td><td>Ruang Bimbingan Konseling (BK) SMP Gelora Bekasi</td></tr>
+                    <tr><td>Bertemu</td><td>:</td><td>Guru BK / Kesiswaan</td></tr>
+                </table>
+                
+                <p>Mengingat pentingnya bimbingan bersama demi kebaikan siswa, kami sangat mengharapkan kehadiran Bapak/Ibu tepat pada waktunya.</p>
+                <p>Demikian surat panggilan ini kami sampaikan. Atas perhatian dan kerja samanya, kami ucapkan terima kasih.</p>
+            </div>
+            
+            <div class="ttd-wrapper">
+                <p>Bekasi, ${tgl}<br>Mengetahui,<br>Guru BK / Kesiswaan</p>
+                <br><br><br><br>
+                <p><strong>( ________________________ )</strong></p>
+            </div>
+            <div class="clear"></div>
+        </body>
+        </html>
+    `);
+    
+    windowCetak.document.close();
+    windowCetak.focus();
+    setTimeout(() => { windowCetak.print(); }, 500);
 }
 
 function editData(id){
