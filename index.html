@@ -1011,10 +1011,17 @@ function getGroups(data, filterType){
         return Object.entries(monthlyData);
     }
 
+    // Default: Pengelompokan Jenis Pelanggaran (Sudah diperbaiki agar tidak case-sensitive)
     data.forEach(item => {
         const raw = (item.pelanggaran || '').trim();
         if(!raw) return;
-        const formatted = raw.charAt(0).toUpperCase() + raw.slice(1);
+        
+        // Ubah semua ke huruf kecil agar kata yang sama tidak terpisah
+        const key = raw.toLowerCase();
+        
+        // Format Tampilan: Kapital di Setiap Awal Kata (Title Case)
+        const formatted = key.replace(/\b\w/g, c => c.toUpperCase());
+        
         groups[formatted] = (groups[formatted] || 0) + 1;
     });
     return Object.entries(groups).sort((a,b)=>b[1]-a[1]);
