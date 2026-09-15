@@ -175,7 +175,6 @@ body.dark-mode .notice{
 .search span{position:absolute;left:13px;top:10px;font-size:17px;color:#7b8794;}
 .record-list{display:grid;gap:10px}
 
-/* Grid Layout Pelanggaran Terbaru */
 #recent-list {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
@@ -217,7 +216,6 @@ body.dark-mode .record-meta{color:#94a3b8}
 .chart-card{padding:13px}
 .chart-box{height:330px;position:relative}
 
-/* Pagination Styling */
 .pagination {
     display: flex;
     align-items: center;
@@ -582,6 +580,9 @@ body.dark-mode .nav-btn.active{color:#60a5fa}
             <button class="drawer-item" onclick="closeMenu(); toggleTheme();">
                 <span>🌓</span> Ganti Mode Tampilan
             </button>
+            <button class="drawer-item" onclick="toggleAudio();">
+                <span id="music-icon">🎵</span> <span id="music-text">Putar Musik</span>
+            </button>
             <button class="drawer-item" onclick="closeMenu(); exportToExcel();">
                 <span>📗</span> Export Data ke Excel
             </button>
@@ -697,7 +698,12 @@ async function loginUser(){
     const p = document.getElementById('login-password').value.trim();
 
     if(!u || !p){
-        return Swal.fire('Error', 'Username dan Password wajib diisi!', 'warning');
+        return Swal.fire({
+            icon: 'warning',
+            title: 'Perhatian',
+            text: 'Username dan Password wajib diisi!',
+            confirmButtonColor: '#1261a0'
+        });
     }
 
     const { data, error } = await _supabase
@@ -708,7 +714,12 @@ async function loginUser(){
         .single();
 
     if(error || !data){
-        Swal.fire('Gagal Login', 'Username atau Kata Sandi salah!', 'error');
+        Swal.fire({
+            icon: 'error',
+            title: 'Gagal Login',
+            text: 'Username atau Kata Sandi salah!',
+            confirmButtonColor: '#e53935'
+        });
     } else {
         currentUser = {
             id: data.id,
@@ -731,15 +742,27 @@ async function loginUser(){
 
 function toggleAdminAuth(){
     if(currentUser){
-        currentUser = null;
-        localStorage.removeItem('user_session');
-        updateAdminUI();
         Swal.fire({
-            icon: 'info',
-            title: 'Logout',
-            text: 'Anda telah keluar dari sistem.',
-            timer: 1500,
-            showConfirmButton: false
+            title: 'Konfirmasi Logout',
+            text: 'Apakah Anda yakin ingin keluar dari sistem?',
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: '#e53935',
+            confirmButtonText: 'Ya, Logout',
+            cancelButtonText: 'Batal'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                currentUser = null;
+                localStorage.removeItem('user_session');
+                updateAdminUI();
+                Swal.fire({
+                    icon: 'info',
+                    title: 'Logout',
+                    text: 'Anda telah keluar dari sistem.',
+                    timer: 1500,
+                    showConfirmButton: false
+                });
+            }
         });
     } else openLogin();
 }
@@ -795,7 +818,12 @@ function updateAdminUI(){
 
 async function openManageUserModal(){
     if(!currentUser || currentUser.role !== 'superadmin'){
-        return Swal.fire('Akses Ditolak', 'Hanya Super Admin yang dapat mengakses menu ini.', 'error');
+        return Swal.fire({
+            icon: 'error',
+            title: 'Akses Ditolak',
+            text: 'Hanya Super Admin yang dapat mengakses menu ini.',
+            confirmButtonColor: '#e53935'
+        });
     }
     document.getElementById('user-modal').classList.add('show');
     await loadUsers();
@@ -821,7 +849,12 @@ async function catatLog(aksi, keterangan) {
 
 async function openLogModal() {
     if (!currentUser || currentUser.role !== 'superadmin') {
-        return Swal.fire('Akses Ditolak', 'Hanya Super Admin yang dapat melihat log.', 'error');
+        return Swal.fire({
+            icon: 'error',
+            title: 'Akses Ditolak',
+            text: 'Hanya Super Admin yang dapat melihat log.',
+            confirmButtonColor: '#e53935'
+        });
     }
     document.getElementById('log-modal').classList.add('show');
     await loadAuditLogs();
@@ -874,7 +907,10 @@ async function loadAuditLogs() {
 
 async function loadUsers(){
     const { data, error } = await _supabase.from('users').select('*').order('id', {ascending: true});
-    if(error) return console.error(error);
+    if(error) {
+        Swal.fire('Error', 'Gagal memuat daftar user: ' + error.message, 'error');
+        return;
+    }
     usersList = data || [];
     const tbody = document.getElementById('user-table-body');
     tbody.innerHTML = usersList.map(u => `
@@ -896,15 +932,30 @@ async function tambahUserBaru(){
     const role = document.getElementById('new-role').value;
 
     if(!nama || !username || !password){
-        return Swal.fire('Gagal', 'Semua field user baru wajib diisi!', 'warning');
+        return Swal.fire({
+            icon: 'warning',
+            title: 'Gagal',
+            text: 'Semua field user baru wajib diisi!',
+            confirmButtonColor: '#1261a0'
+        });
     }
 
     const { error } = await _supabase.from('users').insert([{ nama, username, password, role }]);
     if(error){
-        Swal.fire('Gagal', 'Gagal menambahkan user: '+error.message, 'error');
+        Swal.fire({
+            icon: 'error',
+            title: 'Gagal Menyimpan',
+            text: 'Gagal menambahkan user: ' + error.message,
+            confirmButtonColor: '#e53935'
+        });
     } else {
         await catatLog('TAMBAH', `Menambahkan user baru: ${nama} (@${username}) sebagai ${role}`);
-        Swal.fire('Berhasil', 'User baru berhasil ditambahkan!', 'success');
+        Swal.fire({
+            icon: 'success',
+            title: 'Berhasil',
+            text: 'User baru berhasil ditambahkan!',
+            confirmButtonColor: '#21a366'
+        });
         document.getElementById('new-nama').value = '';
         document.getElementById('new-username').value = '';
         document.getElementById('new-password').value = '';
@@ -915,11 +966,13 @@ async function tambahUserBaru(){
 async function hapusUser(id, namaUser){
     const confirm = await Swal.fire({
         title: 'Hapus User?',
-        text: 'User ini tidak akan bisa login lagi.',
+        text: `User ${namaUser} tidak akan bisa login lagi.`,
         icon: 'warning',
         showCancelButton: true,
         confirmButtonColor: '#e53935',
-        confirmButtonText: 'Ya, Hapus'
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: 'Ya, Hapus',
+        cancelButtonText: 'Batal'
     });
     if(confirm.isConfirmed){
         const { error } = await _supabase.from('users').delete().eq('id', id);
@@ -927,6 +980,8 @@ async function hapusUser(id, namaUser){
             await catatLog('HAPUS', `Menghapus user: ${namaUser}`);
             Swal.fire('Terhapus', 'User berhasil dihapus.', 'success');
             await loadUsers();
+        } else {
+            Swal.fire('Gagal', 'Gagal menghapus user: ' + error.message, 'error');
         }
     }
 }
@@ -1011,17 +1066,11 @@ function getGroups(data, filterType){
         return Object.entries(monthlyData);
     }
 
-    // Default: Pengelompokan Jenis Pelanggaran (Sudah diperbaiki agar tidak case-sensitive)
     data.forEach(item => {
         const raw = (item.pelanggaran || '').trim();
         if(!raw) return;
-        
-        // Ubah semua ke huruf kecil agar kata yang sama tidak terpisah
         const key = raw.toLowerCase();
-        
-        // Format Tampilan: Kapital di Setiap Awal Kata (Title Case)
         const formatted = key.replace(/\b\w/g, c => c.toUpperCase());
-        
         groups[formatted] = (groups[formatted] || 0) + 1;
     });
     return Object.entries(groups).sort((a,b)=>b[1]-a[1]);
@@ -1233,6 +1282,12 @@ async function loadData(){
 
     if(error){
         console.error("Supabase error:", error);
+        Swal.fire({
+            icon: 'error',
+            title: 'Koneksi Gagal',
+            text: 'Gagal mengambil data dari Supabase: ' + error.message,
+            confirmButtonColor: '#e53935'
+        });
         return;
     }
     records = data || [];
@@ -1255,6 +1310,7 @@ async function kirimWhatsAppManual(namaSiswa, kelasSiswa) {
         inputPlaceholder: 'Contoh: 081234567890',
         showCancelButton: true,
         confirmButtonText: '📲 Kirim via WhatsApp',
+        cancelButtonText: 'Batal',
         confirmButtonColor: '#25d366',
         inputValidator: (value) => { if (!value) return 'Nomor WhatsApp wajib diisi!'; }
     });
@@ -1285,6 +1341,7 @@ async function checkPelanggaranCountAndPrompt(namaSiswa, kelasSiswa) {
             inputPlaceholder: 'Contoh: 081234567890',
             showCancelButton: true,
             confirmButtonText: '📲 Kirim Surat Panggilan via WA',
+            cancelButtonText: 'Tutup',
             confirmButtonColor: '#25d366',
             inputValidator: (value) => { if (!value) return 'Nomor WA wajib diisi!'; }
         });
@@ -1302,7 +1359,12 @@ async function checkPelanggaranCountAndPrompt(namaSiswa, kelasSiswa) {
 }
 
 async function simpanData(){
-    if(!currentUser) return Swal.fire('Akses Ditolak', 'Hanya Admin yang dapat menyimpan data.', 'error');
+    if(!currentUser) return Swal.fire({
+        icon: 'error',
+        title: 'Akses Ditolak',
+        text: 'Hanya Admin yang dapat menyimpan data.',
+        confirmButtonColor: '#e53935'
+    });
 
     const editId = document.getElementById('edit-id')?.value || '';
     const tanggal = document.getElementById('tanggal').value;
@@ -1313,7 +1375,12 @@ async function simpanData(){
     const btn = document.getElementById('btn-save');
 
     if(!nama || !kelas || !pelanggaran){
-        return Swal.fire('Form Inkomplit', 'Nama, Kelas, dan Pelanggaran wajib diisi!', 'warning');
+        return Swal.fire({
+            icon: 'warning',
+            title: 'Form Inkomplit',
+            text: 'Nama, Kelas, dan Pelanggaran wajib diisi!',
+            confirmButtonColor: '#1261a0'
+        });
     }
 
     btn.disabled = true;
@@ -1346,7 +1413,12 @@ async function simpanData(){
             if(error) throw error;
             
             await catatLog('EDIT', `Mengubah pelanggaran siswa: ${nama} (${kelas})`);
-            Swal.fire('Tersimpan', 'Data berhasil diperbarui!', 'success');
+            Swal.fire({
+                icon: 'success',
+                title: 'Tersimpan',
+                text: 'Data berhasil diperbarui!',
+                confirmButtonColor: '#21a366'
+            });
         } else {
             const {error} = await _supabase.from('pelanggaran').insert([{
                 tanggal, nama, kelas, pelanggaran, foto_url: fotoUrl
@@ -1354,7 +1426,12 @@ async function simpanData(){
             if(error) throw error;
             
             await catatLog('TAMBAH', `Menambahkan pelanggaran '${pelanggaran}' untuk ${nama} (${kelas})`);
-            Swal.fire('Tersimpan', 'Data berhasil disimpan!', 'success');
+            Swal.fire({
+                icon: 'success',
+                title: 'Tersimpan',
+                text: 'Data berhasil disimpan!',
+                confirmButtonColor: '#21a366'
+            });
         }
 
         batalEdit();
@@ -1364,7 +1441,12 @@ async function simpanData(){
 
     } catch(err){
         console.error(err);
-        Swal.fire('Gagal', 'Gagal menyimpan data: '+err.message, 'error');
+        Swal.fire({
+            icon: 'error',
+            title: 'Gagal Menyimpan',
+            text: 'Gagal menyimpan data: '+err.message,
+            confirmButtonColor: '#e53935'
+        });
     } finally {
         btn.disabled = !currentUser;
         btn.textContent = '💾 Simpan Data';
@@ -1482,7 +1564,12 @@ function cetakSuratPanggilan(namaSiswa, kelasSiswa) {
 }
 
 function editData(id){
-    if(!currentUser) return Swal.fire('Akses Ditolak', 'Hanya Admin yang dapat mengubah data.', 'error');
+    if(!currentUser) return Swal.fire({
+        icon: 'error',
+        title: 'Akses Ditolak',
+        text: 'Hanya Admin yang dapat mengubah data.',
+        confirmButtonColor: '#e53935'
+    });
     const item = records.find(r => r.id === id);
     if(!item)return;
 
@@ -1512,7 +1599,12 @@ function batalEdit(){
 }
 
 async function hapusData(id){
-    if(!currentUser) return Swal.fire('Akses Ditolak', 'Hanya Admin yang dapat menghapus data.', 'error');
+    if(!currentUser) return Swal.fire({
+        icon: 'error',
+        title: 'Akses Ditolak',
+        text: 'Hanya Admin yang dapat menghapus data.',
+        confirmButtonColor: '#e53935'
+    });
 
     const result = await Swal.fire({
         title: 'Konfirmasi Hapus',
@@ -1520,7 +1612,9 @@ async function hapusData(id){
         icon: 'warning',
         showCancelButton: true,
         confirmButtonColor: '#e53935',
-        confirmButtonText: 'Ya, Hapus!'
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: 'Ya, Hapus!',
+        cancelButtonText: 'Batal'
     });
 
     if(!result.isConfirmed) return;
@@ -1535,17 +1629,32 @@ async function hapusData(id){
         if(error) throw error;
         
         await catatLog('HAPUS', `Menghapus pelanggaran siswa: ${item.nama} (${item.kelas})`);
-        Swal.fire('Terhapus!', 'Data berhasil dihapus.', 'success');
+        Swal.fire({
+            icon: 'success',
+            title: 'Terhapus!',
+            text: 'Data berhasil dihapus.',
+            confirmButtonColor: '#21a366'
+        });
         await loadData();
     }catch(err){
         console.error(err);
-        Swal.fire('Gagal', 'Gagal menghapus data: '+err.message, 'error');
+        Swal.fire({
+            icon: 'error',
+            title: 'Gagal Hapus',
+            text: 'Gagal menghapus data: '+err.message,
+            confirmButtonColor: '#e53935'
+        });
     }
 }
 
 /* FUNGSI EXPORT EXCEL DENGAN FILTER TANGGAL */
 async function exportToExcel(){
-    if(!records.length) return Swal.fire('Kosong', 'Tidak ada data untuk diexport!', 'info');
+    if(!records.length) return Swal.fire({
+        icon: 'info',
+        title: 'Data Kosong',
+        text: 'Tidak ada data untuk diexport!',
+        confirmButtonColor: '#1261a0'
+    });
 
     const today = new Date().toISOString().split('T')[0];
     const pastDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
@@ -1589,7 +1698,12 @@ async function exportToExcel(){
     });
 
     if (!filteredRecords.length) {
-        return Swal.fire('Data Tidak Ditemukan', `Tidak ada data pelanggaran dari rentang tanggal ${formValues.tglAwal} s/d ${formValues.tglAkhir}.`, 'warning');
+        return Swal.fire({
+            icon: 'warning',
+            title: 'Data Tidak Ditemukan',
+            text: `Tidak ada data pelanggaran dari rentang tanggal ${formValues.tglAwal} s/d ${formValues.tglAkhir}.`,
+            confirmButtonColor: '#1261a0'
+        });
     }
 
     Swal.fire({
@@ -1660,20 +1774,50 @@ async function exportToExcel(){
         link.click();
         URL.revokeObjectURL(url);
 
-        Swal.close();
+        Swal.fire({
+            icon: 'success',
+            title: 'Berhasil Export',
+            text: 'File rekap Excel berhasil diunduh.',
+            confirmButtonColor: '#21a366'
+        });
     }catch(err){
         console.error(err);
-        Swal.fire('Export Gagal', 'Terjadi kesalahan saat export: '+err.message, 'error');
+        Swal.fire({
+            icon: 'error',
+            title: 'Export Gagal',
+            text: 'Terjadi kesalahan saat export: '+err.message,
+            confirmButtonColor: '#e53935'
+        });
     }
 }
 
-function playAudioOnInteraction(){
+/* KONTROL MUSIK LATAR */
+function toggleAudio(){
     const audio = document.getElementById('bg-music');
-    audio.volume = .2;
-    audio.play().catch(() => {});
-    document.removeEventListener('click', playAudioOnInteraction);
+    const text = document.getElementById('music-text');
+    const icon = document.getElementById('music-icon');
+
+    if(audio.paused){
+        audio.volume = .2;
+        audio.play().then(() => {
+            text.textContent = "Hentikan Musik";
+            icon.textContent = "🔇";
+            Swal.fire({
+                icon: 'info',
+                title: 'Musik Diputar',
+                text: 'Musik latar belakang berhasil diputar.',
+                timer: 1500,
+                showConfirmButton: false
+            });
+        }).catch(err => {
+            Swal.fire('Error Audio', 'Tidak dapat memutar audio: ' + err.message, 'error');
+        });
+    } else {
+        audio.pause();
+        text.textContent = "Putar Musik";
+        icon.textContent = "🎵";
+    }
 }
-document.addEventListener('click', playAudioOnInteraction);
 
 loadData();
 </script>
