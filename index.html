@@ -464,7 +464,7 @@ body.dark-mode .nav-btn.active{color:#60a5fa}
 
 <div class="footer-note">
     Sistem Rekapitulasi Pelanggaran • SMP Gelora Bekasi<br>
-    <span style="font-weight: bold; color: var(--primary);">Licensed By: Charly Caknan</span>
+    <span style="font-weight: bold; color: var(--primary);">Licensed By: Restu Putra Perdana</span>
 </div>
 </main>
 
@@ -562,7 +562,7 @@ body.dark-mode .nav-btn.active{color:#60a5fa}
 
             <div style="margin-top: auto; padding-top: 15px; text-align: center; font-size: 11px; color: var(--muted); border-top: 1px dashed var(--border);">
                 Licensed By:<br>
-                <strong style="color: var(--primary); font-size: 13px;">Charly Caknan</strong>
+                <strong style="color: var(--primary); font-size: 13px;">Restu Putra Perdana</strong>
             </div>
         </div>
     </div>
@@ -614,7 +614,7 @@ function showAbout() {
     Swal.fire({
         title: 'SMP Gelora Bekasi',
         html: '<p>Sistem Rekapitulasi Pelanggaran Siswa v2.0</p>' +
-              '<p style="margin-top: 10px; font-weight: bold; color: #1261a0;">Licensed By: Charly Caknan</p>',
+              '<p style="margin-top: 10px; font-weight: bold; color: #1261a0;">Licensed By: Restu Putra Perdana</p>',
         icon: 'info',
         confirmButtonColor: '#1261a0'
     });
@@ -1113,7 +1113,8 @@ async function loadData(){
 }
 
 async function kirimWhatsAppManual(namaSiswa, kelasSiswa) {
-    const listSiswa = records.filter(r => (r.nama || '').trim().toLowerCase() === namaSiswa.trim().toLowerCase());
+    const cleanName = namaSiswa.trim().toLowerCase();
+    const listSiswa = records.filter(r => (r.nama || '').trim().toLowerCase().includes(cleanName) || cleanName.includes((r.nama || '').trim().toLowerCase()));
     const totalCount = listSiswa.length;
 
     const result = await Swal.fire({
@@ -1141,7 +1142,8 @@ async function kirimWhatsAppManual(namaSiswa, kelasSiswa) {
 }
 
 async function checkPelanggaranCountAndPrompt(namaSiswa, kelasSiswa) {
-    const listSiswa = records.filter(r => (r.nama || '').trim().toLowerCase() === namaSiswa.trim().toLowerCase());
+    const cleanName = namaSiswa.trim().toLowerCase();
+    const listSiswa = records.filter(r => (r.nama || '').trim().toLowerCase().includes(cleanName) || cleanName.includes((r.nama || '').trim().toLowerCase()));
     const totalCount = listSiswa.length;
 
     if (totalCount >= 3) {
@@ -1237,15 +1239,16 @@ async function simpanData(){
 }
 
 function cetakSuratPanggilan(namaSiswa, kelasSiswa) {
-    const listSiswa = records.filter(r => (r.nama || '').trim().toLowerCase() === namaSiswa.trim().toLowerCase());
+    const cleanName = namaSiswa.trim().toLowerCase();
+    const listSiswa = records.filter(r => (r.nama || '').trim().toLowerCase().includes(cleanName) || cleanName.includes((r.nama || '').trim().toLowerCase()));
     const totalCount = listSiswa.length;
     const tgl = new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
 
     let tabelPelanggaranHtml = listSiswa.map((item, idx) => `
         <tr>
-            <td style="border:1px solid #000; padding:8px; text-align:center;">${idx + 1}</td>
-            <td style="border:1px solid #000; padding:8px; text-align:center;">${item.tanggal || '-'}</td>
-            <td style="border:1px solid #000; padding:8px;">${item.pelanggaran || '-'}</td>
+            <td style="border:1px solid #000; padding:5px 6px; text-align:center;">${idx + 1}</td>
+            <td style="border:1px solid #000; padding:5px 6px; text-align:center;">${item.tanggal || '-'}</td>
+            <td style="border:1px solid #000; padding:5px 6px;">${item.pelanggaran || '-'}</td>
         </tr>
     `).join('');
 
@@ -1256,26 +1259,46 @@ function cetakSuratPanggilan(namaSiswa, kelasSiswa) {
         <head>
             <title>Surat Panggilan Orang Tua - ${escapeHtml(namaSiswa)}</title>
             <style>
-                @page { size: A4 portrait; margin: 20mm; }
-                body { font-family: 'Times New Roman', Times, serif; font-size: 12pt; line-height: 1.5; color: #000; margin: 0; padding: 0; }
-                .kop-surat { text-align: center; border-bottom: 3px double #000; padding-bottom: 8px; margin-bottom: 20px; }
-                .kop-surat h2 { margin: 0; font-size: 16pt; font-weight: bold; text-transform: uppercase; }
-                .kop-surat p { margin: 2px 0; font-size: 10pt; }
-                .judul-surat { text-align: center; margin: 20px 0 15px; }
-                .judul-surat h4 { margin: 0; font-size: 13pt; text-decoration: underline; text-transform: uppercase; }
-                .content { text-align: justify; }
-                .table-data, .table-info { width: 100%; border-collapse: collapse; margin: 12px 0; }
-                .table-data td { padding: 4px 0; vertical-align: top; }
-                .table-info th, .table-info td { border: 1px solid #000; font-size: 11pt; }
-                .table-info th { background-color: #f2f2f2; padding: 8px; text-align: center; }
-                .ttd-wrapper { margin-top: 40px; float: right; width: 250px; text-align: center; }
+                @page { 
+                    size: A4 portrait; 
+                    margin: 10mm 15mm; 
+                }
+                body { 
+                    font-family: Arial, Helvetica, sans-serif; 
+                    font-size: 11pt; 
+                    line-height: 1.35; 
+                    color: #000; 
+                    margin: 0; 
+                    padding: 0; 
+                }
+                .kop-surat { 
+                    text-align: center; 
+                    border-bottom: 3px double #000; 
+                    padding-bottom: 6px; 
+                    margin-bottom: 12px; 
+                }
+                .kop-surat h2 { margin: 0; font-size: 15pt; font-weight: bold; text-transform: uppercase; }
+                .kop-surat p { margin: 2px 0; font-size: 9.5pt; }
+                .judul-surat { text-align: center; margin: 10px 0 10px; }
+                .judul-surat h4 { margin: 0; font-size: 12pt; text-decoration: underline; text-transform: uppercase; }
+                .judul-surat p { margin: 2px 0 0 0; font-size: 10pt; }
+                .content p { margin: 4px 0; }
+                .table-data { width: 100%; border-collapse: collapse; margin: 4px 0; }
+                .table-data td { padding: 2px 0; vertical-align: top; font-size: 11pt; }
+                .table-info { width: 100%; border-collapse: collapse; margin: 6px 0; }
+                .table-info th, .table-info td { border: 1px solid #000; font-size: 10.5pt; }
+                .table-info th { background-color: #f2f2f2; padding: 5px; text-align: center; }
+                .table-info td { padding: 5px 6px; }
+                .ttd-wrapper { margin-top: 15px; float: right; width: 220px; text-align: center; font-size: 11pt; }
+                .ttd-wrapper p { margin: 2px 0; }
+                .space-ttd { height: 45px; }
                 .clear { clear: both; }
             </style>
         </head>
         <body>
             <div class="kop-surat">
                 <h2>SMP GELORA BEKASI</h2>
-                <p>Jl. Raya Kp. Irian, RT.003/RW.003, Tlk. Pucung, Kec. Bekasi Utara, Kota Bks, Jawa Barat 17121</p>
+                <p>Jl. Raya Kp. Irian, RT.005/RW.003, Telk. Pucang, Kec. Bekasi Utara, Kota Bekasi, Jawa Barat 17121</p>
                 <p>Telp: (021) 88985463</p>
             </div>
             <div class="judul-surat">
@@ -1283,31 +1306,37 @@ function cetakSuratPanggilan(namaSiswa, kelasSiswa) {
                 <p>Nomor: 421.3 / BP-BK / ${new Date().getFullYear()}</p>
             </div>
             <div class="content">
-                <p>Kepada Yth.<br>Bapak / Ibu / Wali Murid dari <strong>${escapeHtml(namaSiswa)}</strong><br>Di Tempat</p>
+                <p>Kepada Yth.<br><strong>Bapak / Ibu / Wali Murid dari ${escapeHtml(namaSiswa)}</strong><br>Di Tempat</p>
                 <p>Dengan hormat,</p>
                 <p>Sehubungan dengan catatan tata tertib sekolah, kami menginformasikan bahwa siswa tersebut di bawah ini telah mencapai <strong>${totalCount} kali pelanggaran</strong>:</p>
-                <table class="table-data">
-                    <tr><td width="140"><strong>Nama Siswa</strong></td><td width="15">:</td><td>${escapeHtml(namaSiswa)}</td></tr>
+                
+                <table class="table-data" style="margin-top: 6px;">
+                    <tr><td width="130"><strong>Nama Siswa</strong></td><td width="10">:</td><td><strong>${escapeHtml(namaSiswa)}</strong></td></tr>
                     <tr><td><strong>Kelas</strong></td><td>:</td><td>${escapeHtml(kelasSiswa)}</td></tr>
                 </table>
-                <p><strong>Rincian Riwayat Pelanggaran:</strong></p>
+
+                <p style="margin-top: 6px;"><strong>Rincian Riwayat Pelanggaran (${totalCount}x):</strong></p>
                 <table class="table-info">
-                    <thead><tr><th width="40">No</th><th width="130">Tanggal</th><th>Jenis Pelanggaran</th></tr></thead>
+                    <thead><tr><th width="35">No</th><th width="110">Tanggal</th><th>Jenis Pelanggaran</th></tr></thead>
                     <tbody>${tabelPelanggaranHtml}</tbody>
                 </table>
-                <p>Maka dari itu, kami mengharapkan kehadiran Bapak/Ibu/Wali Siswa ke sekolah pada:</p>
-                <table class="table-data" style="margin-left: 20px;">
-                    <tr><td width="120">Hari / Tanggal</td><td width="15">:</td><td>.......................................................</td></tr>
+
+                <p style="margin-top: 6px;">Maka dari itu, kami mengharapkan kehadiran Bapak/Ibu/Wali Siswa ke sekolah pada:</p>
+                <table class="table-data" style="margin-left: 15px;">
+                    <tr><td width="120">Hari / Tanggal</td><td width="10">:</td><td>.......................................................</td></tr>
                     <tr><td>Waktu</td><td>:</td><td>08.00 WIB – Selesai</td></tr>
                     <tr><td>Tempat</td><td>:</td><td>Ruang Bimbingan Konseling (BK) SMP Gelora Bekasi</td></tr>
                     <tr><td>Bertemu</td><td>:</td><td>Guru BK / Kesiswaan</td></tr>
                 </table>
-                <p>Mengingat pentingnya bimbingan bersama demi kebaikan siswa, kami sangat mengharapkan kehadiran Bapak/Ibu tepat pada waktunya.</p>
-                <p>Demikian surat panggilan ini kami sampaikan. Atas perhatian dan kerja samanya, kami ucapkan terima kasih.</p>
+
+                <p style="margin-top: 6px;">Mengingat pentingnya bimbingan bersama demi kebaikan siswa, kami sangat mengharapkan kehadiran Bapak/Ibu tepat pada waktunya.</p>
+                <p style="margin-top: 4px;">Demikian surat panggilan ini kami sampaikan. Atas perhatian dan kerja samanya, kami ucapkan terima kasih.</p>
             </div>
             <div class="ttd-wrapper">
-                <p>Bekasi, ${tgl}<br>Mengetahui,<br>Guru BK / Kesiswaan</p>
-                <br><br><br><br>
+                <p>Bekasi, ${tgl}</p>
+                <p>Mengetahui,</p>
+                <p>Guru BK / Kesiswaan</p>
+                <div class="space-ttd"></div>
                 <p><strong>( ________________________ )</strong></p>
             </div>
             <div class="clear"></div>
