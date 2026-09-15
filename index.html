@@ -216,6 +216,35 @@ body.dark-mode .record-meta{color:#94a3b8}
 .form-actions{display:grid;gap:8px;margin-top:5px}
 .chart-card{padding:13px}
 .chart-box{height:330px;position:relative}
+
+/* Pagination Styling */
+.pagination {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 15px;
+    padding: 10px 0;
+}
+.pagination button {
+    background: var(--primary);
+    color: #fff;
+    border: 0;
+    padding: 8px 14px;
+    border-radius: 8px;
+    font-weight: bold;
+    font-size: 12px;
+}
+.pagination button:disabled {
+    background: var(--muted);
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+.pagination span {
+    font-size: 12px;
+    font-weight: bold;
+    color: var(--muted);
+}
+
 .bottom-nav{
     position:fixed;left:50%;bottom:0;transform:translateX(-50%);
     width:min(1180px,100%);
@@ -369,6 +398,13 @@ body.dark-mode .nav-btn.active{color:#60a5fa}
             </thead>
             <tbody id="table-body"></tbody>
         </table>
+    </div>
+
+    <!-- Navigasi Pagination -->
+    <div class="pagination">
+        <button id="prev-btn" onclick="changePage(-1)">◀ Sebelumnya</button>
+        <span id="page-info">Halaman 1 dari 1</span>
+        <button id="next-btn" onclick="changePage(1)">Selanjutnya ▶</button>
     </div>
 </section>
 
@@ -546,6 +582,11 @@ let records = [];
 let usersList = [];
 let myChart = null;
 
+// Variabel Pagination
+let currentPage = 1;
+const rowsPerPage = 10;
+let filteredRecordsCache = [];
+
 document.getElementById('tanggal').value = new Date().toISOString().split('T')[0];
 
 function toggleTheme() {
@@ -591,7 +632,7 @@ function showPage(page){
     window.scrollTo({top:0,behavior:'smooth'});
 
     if(page === 'chart') updateChart(records);
-    if(page === 'data') renderTable(records);
+    if(page === 'data') filterData();
 }
 
 function openForm(){
@@ -713,7 +754,7 @@ function updateAdminUI(){
         batalEdit();
     }
 
-    renderTable(records);
+    filterData();
     renderRecent();
     updateStats();
 }
@@ -817,8 +858,8 @@ function getGroups(data, filterType){
         data.forEach(item => {
             const k = (item.kelas || '').toString().toUpperCase().trim();
             let matched = false;
-            if (k.includes('7') || k.includes('VII')) { groups['Kelas 7']++; matched = true; } 
-            else if (k.includes('8') || k.includes('VIII')) { groups['Kelas 8']++; matched = true; } 
+            if (k.includes('8') || k.includes('VIII')) { groups['Kelas 8']++; matched = true; } 
+            else if (k.includes('7') || k.includes('VII')) { groups['Kelas 7']++; matched = true; } 
             else if (k.includes('9') || k.includes('IX')) { groups['Kelas 9']++; matched = true; }
             if (!matched) groups['Lainnya']++;
         });
@@ -950,49 +991,73 @@ function recordCard(item){
     </div>`;
 }
 
-function renderTable(data = records){
+function renderTable(){
     const mobile = document.getElementById('record-list');
-    if(mobile){
-        mobile.innerHTML = data.length ? data.map(recordCard).join('') : '<div class="empty">Data tidak ditemukan.</div>';
-    }
-
     const tbody = document.getElementById('table-body');
-    if(!tbody)return;
-    tbody.innerHTML = '';
+    const pageInfo = document.getElementById('page-info');
+    const prevBtn = document.getElementById('prev-btn');
+    const nextBtn = document.getElementById('next-btn');
 
-    if(!data.length){
-        tbody.innerHTML = '<tr><td colspan="7">Data tidak ditemukan</td></tr>';
-        return;
+    const totalPages = Math.ceil(filteredRecordsCache.length / rowsPerPage) || 1;
+    if(currentPage > totalPages) currentPage = totalPages;
+    if(currentPage < 1) currentPage = 1;
+
+    const start = (currentPage - 1) * rowsPerPage;
+    const paginatedItems = filteredRecordsCache.slice(start, start + rowsPerPage);
+
+    // Render Mobile List
+    if(mobile){
+        mobile.innerHTML = paginatedItems.length ? paginatedItems.map(recordCard).join('') : '<div class="empty">Data tidak ditemukan.</div>';
     }
 
-    data.forEach((item, index) => {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-            <td>${index+1}</td>
-            <td>${escapeHtml(item.tanggal||'-')}</td>
-            <td>${escapeHtml(item.nama||'-')}</td>
-            <td>${escapeHtml(item.kelas||'-')}</td>
-            <td>${escapeHtml(item.pelanggaran||'-')}</td>
-            <td>${item.foto_url ? `<a href="${escapeAttr(item.foto_url)}" target="_blank"><img src="${escapeAttr(item.foto_url)}"></a>` : '-'}</td>
-            <td>${currentUser ? `
-                <button class="notify-btn" onclick="kirimWhatsAppManual('${escapeAttr(item.nama)}', '${escapeAttr(item.kelas)}')">💬 WA Wali</button>
-                <button class="print-btn" onclick="cetakSuratPanggilan('${escapeAttr(item.nama)}', '${escapeAttr(item.kelas)}')">Cetak</button>
-                <button class="edit-btn" onclick="editData(${item.id})">Edit</button>
-                <button class="delete-btn" onclick="hapusData(${item.id})">Hapus</button>
-            ` : '-'}</td>
-        `;
-        tbody.appendChild(tr);
-    });
+    // Render Desktop Table
+    if(tbody){
+        tbody.innerHTML = '';
+        if(!paginatedItems.length){
+            tbody.innerHTML = '<tr><td colspan="7">Data tidak ditemukan</td></tr>';
+        } else {
+            paginatedItems.forEach((item, index) => {
+                const tr = document.createElement('tr');
+                const absoluteNo = start + index + 1;
+                tr.innerHTML = `
+                    <td>${absoluteNo}</td>
+                    <td>${escapeHtml(item.tanggal||'-')}</td>
+                    <td>${escapeHtml(item.nama||'-')}</td>
+                    <td>${escapeHtml(item.kelas||'-')}</td>
+                    <td>${escapeHtml(item.pelanggaran||'-')}</td>
+                    <td>${item.foto_url ? `<a href="${escapeAttr(item.foto_url)}" target="_blank"><img src="${escapeAttr(item.foto_url)}"></a>` : '-'}</td>
+                    <td>${currentUser ? `
+                        <button class="notify-btn" onclick="kirimWhatsAppManual('${escapeAttr(item.nama)}', '${escapeAttr(item.kelas)}')">💬 WA Wali</button>
+                        <button class="print-btn" onclick="cetakSuratPanggilan('${escapeAttr(item.nama)}', '${escapeAttr(item.kelas)}')">Cetak</button>
+                        <button class="edit-btn" onclick="editData(${item.id})">Edit</button>
+                        <button class="delete-btn" onclick="hapusData(${item.id})">Hapus</button>
+                    ` : '-'}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+    }
+
+    // Update Pagination Controls
+    if(pageInfo) pageInfo.textContent = `Halaman ${currentPage} dari ${totalPages}`;
+    if(prevBtn) prevBtn.disabled = currentPage === 1;
+    if(nextBtn) nextBtn.disabled = currentPage === totalPages || totalPages === 0;
+}
+
+function changePage(direction){
+    currentPage += direction;
+    renderTable();
 }
 
 function filterData(){
     const keyword = document.getElementById('search-input').value.toLowerCase().trim();
-    const filtered = records.filter(item =>
+    filteredRecordsCache = records.filter(item =>
         (item.nama||'').toLowerCase().includes(keyword) ||
         (item.kelas||'').toLowerCase().includes(keyword) ||
         (item.pelanggaran||'').toLowerCase().includes(keyword)
     );
-    renderTable(filtered);
+    currentPage = 1; // Reset ke halaman 1 saat mengetik pencarian
+    renderTable();
 }
 
 function escapeHtml(value){
@@ -1042,6 +1107,7 @@ async function loadData(){
         return;
     }
     records = data || [];
+    filteredRecordsCache = [...records];
     updateAdminUI();
     updateChart(records);
 }
