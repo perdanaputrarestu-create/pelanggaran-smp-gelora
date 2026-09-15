@@ -536,6 +536,32 @@ body.dark-mode .nav-btn.active{color:#60a5fa}
     </div>
 </div>
 
+<!-- MODAL LOG AKTIVITAS -->
+<div id="log-modal" class="modal" onclick="if(event.target===this)closeLogModal()">
+    <div class="modal-box" style="width: min(650px, 100%);">
+        <button class="modal-close" onclick="closeLogModal()">×</button>
+        <div class="lock">📜</div>
+        <h3>Log Aktivitas Sistem</h3>
+        <p>Catatan riwayat aksi Admin dalam mengelola data.</p>
+        
+        <div style="overflow-x:auto; max-height: 350px; overflow-y: auto; margin-top: 15px;">
+            <table class="user-table">
+                <thead>
+                    <tr>
+                        <th>Waktu</th>
+                        <th>User</th>
+                        <th>Aksi</th>
+                        <th>Keterangan</th>
+                    </tr>
+                </thead>
+                <tbody id="log-table-body">
+                    <tr><td colspan="4" style="text-align:center;">Memuat log...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
 <!-- SIDEBAR MENU -->
 <div id="side-menu" class="modal" onclick="if(event.target===this)closeMenu()">
     <div class="drawer-box">
@@ -549,6 +575,9 @@ body.dark-mode .nav-btn.active{color:#60a5fa}
             </button>
             <button id="drawer-manage-user" class="drawer-item" style="display: none;" onclick="closeMenu(); openManageUserModal();">
                 <span>👥</span> Kelola Admin / User
+            </button>
+            <button id="drawer-audit-log" class="drawer-item" style="display: none;" onclick="closeMenu(); openLogModal();">
+                <span>📜</span> Log Aktivitas
             </button>
             <button class="drawer-item" onclick="closeMenu(); toggleTheme();">
                 <span>🌓</span> Ganti Mode Tampilan
@@ -719,6 +748,7 @@ function updateAdminUI(){
     const badge = document.getElementById('status-badge');
     const authBtn = document.getElementById('btn-auth-home');
     const manageUserBtn = document.getElementById('drawer-manage-user');
+    const auditLogBtn = document.getElementById('drawer-audit-log');
     const userInfoText = document.getElementById('user-info-text');
     const loggedUsername = document.getElementById('logged-username');
 
@@ -738,10 +768,12 @@ function updateAdminUI(){
             badge.textContent = '👑 Super Admin';
             badge.className = 'badge superadmin';
             if(manageUserBtn) manageUserBtn.style.display = 'flex';
+            if(auditLogBtn) auditLogBtn.style.display = 'flex';
         } else {
             badge.textContent = '🛡️ Admin';
             badge.className = 'badge admin';
             if(manageUserBtn) manageUserBtn.style.display = 'none';
+            if(auditLogBtn) auditLogBtn.style.display = 'none';
         }
     } else {
         userInfoText.style.display = 'none';
@@ -752,6 +784,7 @@ function updateAdminUI(){
         save.disabled = true;
         notice.style.display = 'block';
         if(manageUserBtn) manageUserBtn.style.display = 'none';
+        if(auditLogBtn) auditLogBtn.style.display = 'none';
         batalEdit();
     }
 
@@ -771,6 +804,74 @@ function closeManageUserModal(){
     document.getElementById('user-modal').classList.remove('show');
 }
 
+/* FUNGSI LOG AKTIVITAS (AUDIT LOG) */
+async function catatLog(aksi, keterangan) {
+    if (!currentUser) return;
+    try {
+        await _supabase.from('audit_logs').insert([{
+            username: currentUser.username,
+            nama_user: currentUser.nama,
+            aksi: aksi,
+            keterangan: keterangan
+        }]);
+    } catch (err) {
+        console.error("Gagal mencatat log:", err);
+    }
+}
+
+async function openLogModal() {
+    if (!currentUser || currentUser.role !== 'superadmin') {
+        return Swal.fire('Akses Ditolak', 'Hanya Super Admin yang dapat melihat log.', 'error');
+    }
+    document.getElementById('log-modal').classList.add('show');
+    await loadAuditLogs();
+}
+
+function closeLogModal() {
+    document.getElementById('log-modal').classList.remove('show');
+}
+
+async function loadAuditLogs() {
+    const tbody = document.getElementById('log-table-body');
+    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">Memuat data...</td></tr>';
+
+    const { data, error } = await _supabase
+        .from('audit_logs')
+        .select('*')
+        .order('id', { ascending: false })
+        .limit(50);
+
+    if (error) {
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:red;">Gagal memuat log.</td></tr>';
+        return;
+    }
+
+    if (!data.length) {
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">Belum ada catatan aktivitas.</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = data.map(l => {
+        const tgl = new Date(l.created_at).toLocaleString('id-ID', {
+            dateStyle: 'short', timeStyle: 'short'
+        });
+        
+        let color = '#1261a0';
+        if (l.aksi === 'TAMBAH') color = '#21a366';
+        if (l.aksi === 'EDIT') color = '#f5b400';
+        if (l.aksi === 'HAPUS') color = '#e53935';
+
+        return `
+            <tr>
+                <td style="font-size: 11px; white-space: nowrap;">${tgl}</td>
+                <td><strong>${escapeHtml(l.nama_user)}</strong><br><small style="color:var(--muted)">@${escapeHtml(l.username)}</small></td>
+                <td><span class="badge" style="background:${color}">${l.aksi}</span></td>
+                <td style="font-size: 11px;">${escapeHtml(l.keterangan)}</td>
+            </tr>
+        `;
+    }).join('');
+}
+
 async function loadUsers(){
     const { data, error } = await _supabase.from('users').select('*').order('id', {ascending: true});
     if(error) return console.error(error);
@@ -782,7 +883,7 @@ async function loadUsers(){
             <td>@${escapeHtml(u.username)}</td>
             <td><span class="badge ${u.role === 'superadmin' ? 'superadmin' : 'admin'}">${u.role}</span></td>
             <td>
-                ${u.username !== currentUser.username ? `<button class="delete-btn" style="padding:4px 8px" onclick="hapusUser(${u.id})">Hapus</button>` : '-'}
+                ${u.username !== currentUser.username ? `<button class="delete-btn" style="padding:4px 8px" onclick="hapusUser(${u.id}, '${escapeAttr(u.nama)}')">Hapus</button>` : '-'}
             </td>
         </tr>
     `).join('');
@@ -802,6 +903,7 @@ async function tambahUserBaru(){
     if(error){
         Swal.fire('Gagal', 'Gagal menambahkan user: '+error.message, 'error');
     } else {
+        await catatLog('TAMBAH', `Menambahkan user baru: ${nama} (@${username}) sebagai ${role}`);
         Swal.fire('Berhasil', 'User baru berhasil ditambahkan!', 'success');
         document.getElementById('new-nama').value = '';
         document.getElementById('new-username').value = '';
@@ -810,7 +912,7 @@ async function tambahUserBaru(){
     }
 }
 
-async function hapusUser(id){
+async function hapusUser(id, namaUser){
     const confirm = await Swal.fire({
         title: 'Hapus User?',
         text: 'User ini tidak akan bisa login lagi.',
@@ -822,6 +924,7 @@ async function hapusUser(id){
     if(confirm.isConfirmed){
         const { error } = await _supabase.from('users').delete().eq('id', id);
         if(!error){
+            await catatLog('HAPUS', `Menghapus user: ${namaUser}`);
             Swal.fire('Terhapus', 'User berhasil dihapus.', 'success');
             await loadUsers();
         }
@@ -876,7 +979,6 @@ function getGroups(data, filterType){
             const d = new Date(item.tanggal);
             if(isNaN(d)) return;
             
-            // Hitung nomor minggu dalam tahun (ISO Week)
             const target = new Date(d.valueOf());
             const dayNr = (d.getDay() + 6) % 7;
             target.setDate(target.getDate() - dayNr + 3);
@@ -1028,12 +1130,10 @@ function renderTable(){
     const start = (currentPage - 1) * rowsPerPage;
     const paginatedItems = filteredRecordsCache.slice(start, start + rowsPerPage);
 
-    // Render Mobile List
     if(mobile){
         mobile.innerHTML = paginatedItems.length ? paginatedItems.map(recordCard).join('') : '<div class="empty">Data tidak ditemukan.</div>';
     }
 
-    // Render Desktop Table
     if(tbody){
         tbody.innerHTML = '';
         if(!paginatedItems.length){
@@ -1061,7 +1161,6 @@ function renderTable(){
         }
     }
 
-    // Update Pagination Controls
     if(pageInfo) pageInfo.textContent = `Halaman ${currentPage} dari ${totalPages}`;
     if(prevBtn) prevBtn.disabled = currentPage === 1;
     if(nextBtn) nextBtn.disabled = currentPage === totalPages || totalPages === 0;
@@ -1079,7 +1178,7 @@ function filterData(){
         (item.kelas||'').toLowerCase().includes(keyword) ||
         (item.pelanggaran||'').toLowerCase().includes(keyword)
     );
-    currentPage = 1; // Reset ke halaman 1 saat mengetik pencarian
+    currentPage = 1;
     renderTable();
 }
 
@@ -1238,12 +1337,16 @@ async function simpanData(){
 
             const {error} = await _supabase.from('pelanggaran').update(payload).eq('id', editId);
             if(error) throw error;
+            
+            await catatLog('EDIT', `Mengubah pelanggaran siswa: ${nama} (${kelas})`);
             Swal.fire('Tersimpan', 'Data berhasil diperbarui!', 'success');
         } else {
             const {error} = await _supabase.from('pelanggaran').insert([{
                 tanggal, nama, kelas, pelanggaran, foto_url: fotoUrl
             }]);
             if(error) throw error;
+            
+            await catatLog('TAMBAH', `Menambahkan pelanggaran '${pelanggaran}' untuk ${nama} (${kelas})`);
             Swal.fire('Tersimpan', 'Data berhasil disimpan!', 'success');
         }
 
@@ -1423,6 +1526,8 @@ async function hapusData(id){
         }
         const {error} = await _supabase.from('pelanggaran').delete().eq('id', id);
         if(error) throw error;
+        
+        await catatLog('HAPUS', `Menghapus pelanggaran siswa: ${item.nama} (${item.kelas})`);
         Swal.fire('Terhapus!', 'Data berhasil dihapus.', 'success');
         await loadData();
     }catch(err){
