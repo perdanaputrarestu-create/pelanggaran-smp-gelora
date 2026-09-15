@@ -455,6 +455,7 @@ body.dark-mode .nav-btn.active{color:#60a5fa}
                 <option value="jenis">⚠️ Jenis Pelanggaran</option>
                 <option value="kelas">🏫 Per Kelas (7A, 7B, 8A, dst)</option>
                 <option value="tingkat">🎓 Per Tingkat (Kelas 7, 8, & 9)</option>
+                <option value="minggu">📅 Tren Per Minggu</option>
                 <option value="bulan">📅 Tren Per Bulan</option>
             </select>
         </div>
@@ -868,6 +869,28 @@ function getGroups(data, filterType){
         return Object.entries(groups);
     }
 
+    if(filterType === 'minggu'){
+        const weeklyData = {};
+        data.forEach(item => {
+            if(!item.tanggal) return;
+            const d = new Date(item.tanggal);
+            if(isNaN(d)) return;
+            
+            // Hitung nomor minggu dalam tahun (ISO Week)
+            const target = new Date(d.valueOf());
+            const dayNr = (d.getDay() + 6) % 7;
+            target.setDate(target.getDate() - dayNr + 3);
+            const firstThursday = new Date(target.getFullYear(), 0, 4);
+            const firstDayNr = (firstThursday.getDay() + 6) % 7;
+            firstThursday.setDate(firstThursday.getDate() - firstDayNr + 3);
+            const weekNum = Math.floor((target - firstThursday) / (7 * 86400000)) + 1;
+            const weekKey = `Minggu ${weekNum} (${d.getFullYear()})`;
+            
+            weeklyData[weekKey] = (weeklyData[weekKey] || 0) + 1;
+        });
+        return Object.entries(weeklyData);
+    }
+
     if(filterType === 'bulan'){
         const monthNames = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agt", "Sep", "Okt", "Nov", "Des"];
         const monthlyData = {};
@@ -913,7 +936,7 @@ function updateChart(data){
 
     let chartType = 'bar';
     if(filterType === 'tingkat') chartType = 'pie';
-    if(filterType === 'bulan') chartType = 'line';
+    if(filterType === 'bulan' || filterType === 'minggu') chartType = 'line';
 
     const colors = [
         'rgba(54, 162, 235, 0.85)', 'rgba(255, 99, 132, 0.85)',
