@@ -333,6 +333,728 @@ body.dark-mode .nav-btn.active{color:#60a5fa}
 @media(max-width:699px){
     .desktop-only{display:none}
 }
+
+/* =========================================================
+   MOBILE UI V2 — MODERN APP STYLE
+   ========================================================= */
+
+@media(max-width:699px){
+
+    body{
+        background:
+            radial-gradient(circle at 100% 0%, rgba(18,97,160,.10), transparent 32%),
+            var(--bg);
+        overflow-x:hidden;
+    }
+
+    .app{
+        width:100%;
+        min-height:100vh;
+        background:transparent;
+    }
+
+    /* =========================
+       TOPBAR
+       ========================= */
+
+    .topbar{
+        height:68px;
+        padding:0 14px;
+        background:
+            linear-gradient(135deg,#083b68 0%,#1261a0 55%,#2185d0 100%);
+        box-shadow:0 5px 22px rgba(8,59,104,.25);
+    }
+
+    .logo{
+        width:42px;
+        height:42px;
+        margin-right:11px;
+        border-radius:14px;
+        background:rgba(255,255,255,.16);
+        border:1px solid rgba(255,255,255,.18);
+        box-shadow:0 4px 12px rgba(0,0,0,.12);
+        font-size:21px;
+    }
+
+    .brand{
+        font-size:14px;
+        letter-spacing:.2px;
+    }
+
+    .menu-btn{
+        width:40px;
+        height:40px;
+        border-radius:12px;
+        background:rgba(255,255,255,.10);
+        margin-left:6px;
+        transition:.2s;
+    }
+
+    .menu-btn:active{
+        transform:scale(.92);
+        background:rgba(255,255,255,.2);
+    }
+
+    /* =========================
+       CONTENT
+       ========================= */
+
+    .content{
+        padding:18px 13px 105px;
+    }
+
+    /* =========================
+       HERO
+       ========================= */
+
+    .hero{
+        position:relative;
+        overflow:hidden;
+        padding:22px 17px 20px;
+        margin-bottom:14px;
+        border-radius:24px;
+        color:white;
+        background:
+            linear-gradient(135deg,#0b4779,#1261a0 55%,#2185d0);
+        box-shadow:0 10px 28px rgba(18,97,160,.20);
+    }
+
+    .hero::before{
+        content:"";
+        position:absolute;
+        width:150px;
+        height:150px;
+        border-radius:50%;
+        right:-65px;
+        top:-70px;
+        background:rgba(255,255,255,.10);
+    }
+
+    .hero::after{
+        content:"";
+        position:absolute;
+        width:90px;
+        height:90px;
+        border-radius:50%;
+        left:-45px;
+        bottom:-50px;
+        background:rgba(255,255,255,.07);
+    }
+
+    .hero h1,
+    body.dark-mode .hero h1{
+        position:relative;
+        z-index:1;
+        color:#fff;
+        font-size:19px;
+        line-height:1.3;
+        letter-spacing:.2px;
+    }
+
+    .hero h2,
+    body.dark-mode .hero h2{
+        position:relative;
+        z-index:1;
+        color:#dbeafe;
+        font-size:15px;
+        margin-top:9px;
+    }
+
+    .hero p{
+        position:relative;
+        z-index:1;
+        color:rgba(255,255,255,.75);
+        font-size:11px;
+        letter-spacing:.8px;
+    }
+
+    /* =========================
+       ACCESS CARD
+       ========================= */
+
+    .access-card{
+        margin:0 0 14px;
+        padding:14px;
+        border:0;
+        border-radius:18px;
+        background:var(--card);
+        box-shadow:var(--shadow);
+    }
+
+    .access-line{
+        margin-bottom:10px;
+    }
+
+    .badge{
+        border-radius:999px;
+        padding:7px 11px;
+        font-size:10px;
+        box-shadow:0 3px 8px rgba(0,0,0,.08);
+    }
+
+    /* =========================
+       BUTTON
+       ========================= */
+
+    .primary-btn,
+    .success-btn,
+    .excel-btn,
+    .danger-btn,
+    .secondary-btn,
+    .wa-btn{
+        min-height:45px;
+        border-radius:13px;
+        box-shadow:0 4px 10px rgba(0,0,0,.07);
+        transition:transform .15s, box-shadow .15s;
+    }
+
+    .primary-btn:active,
+    .success-btn:active,
+    .excel-btn:active,
+    .secondary-btn:active{
+        transform:scale(.98);
+    }
+
+    .excel-btn{
+        margin-top:2px;
+        background:linear-gradient(135deg,#1261a0,#2185d0);
+        box-shadow:0 7px 17px rgba(18,97,160,.20);
+    }
+
+    /* =========================
+       STATISTICS
+       ========================= */
+
+    .stats{
+        gap:9px;
+        margin:0 0 14px;
+    }
+
+    .stat{
+        position:relative;
+        min-height:100px;
+        padding:14px;
+        border:0;
+        border-radius:18px;
+        overflow:hidden;
+        box-shadow:var(--shadow);
+    }
+
+    .stat::after{
+        content:"";
+        position:absolute;
+        width:55px;
+        height:55px;
+        border-radius:50%;
+        right:-18px;
+        bottom:-18px;
+        background:rgba(18,97,160,.06);
+    }
+
+    .stat-icon{
+        width:36px;
+        height:36px;
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        border-radius:11px;
+        background:var(--primary-light);
+        font-size:18px;
+        margin-bottom:9px;
+    }
+
+    body.dark-mode .stat-icon{
+        background:#263b56;
+    }
+
+    .stat-label{
+        font-size:10px;
+        letter-spacing:.2px;
+    }
+
+    .stat-value{
+        font-size:23px;
+        line-height:1;
+        margin-top:6px;
+    }
+
+    /* =========================
+       SECTION TITLE
+       ========================= */
+
+    .section-title{
+        font-size:16px;
+        margin:20px 2px 11px;
+        font-weight:800;
+    }
+
+    /* =========================
+       RECENT DATA
+       ========================= */
+
+    #recent-list{
+        display:grid;
+        grid-template-columns:1fr;
+        gap:10px;
+    }
+
+    .record-list{
+        gap:10px;
+    }
+
+    .record{
+        position:relative;
+        grid-template-columns:minmax(0,1fr) 62px;
+        gap:10px;
+        padding:14px;
+        border:0;
+        border-radius:18px;
+        background:var(--card);
+        box-shadow:var(--shadow);
+        overflow:hidden;
+    }
+
+    .record::before{
+        content:"";
+        position:absolute;
+        left:0;
+        top:0;
+        bottom:0;
+        width:4px;
+        background:linear-gradient(#1261a0,#36a3ff);
+        border-radius:4px;
+    }
+
+    .record-date{
+        font-size:10px;
+        margin-bottom:7px;
+    }
+
+    .record-name{
+        font-size:15px;
+        line-height:1.3;
+        padding-right:4px;
+    }
+
+    .record-meta{
+        font-size:11px;
+        line-height:1.6;
+    }
+
+    .record-violation{
+        font-size:11px;
+        line-height:1.5;
+        margin-top:5px;
+    }
+
+    .record-photo{
+        width:62px;
+        height:62px;
+        border-radius:14px;
+        box-shadow:0 4px 10px rgba(0,0,0,.12);
+    }
+
+    .actions{
+        gap:7px;
+        margin-top:3px;
+    }
+
+    .edit-btn,
+    .delete-btn,
+    .print-btn,
+    .notify-btn{
+        min-height:36px;
+        border-radius:10px;
+        font-size:10px;
+    }
+
+    /* =========================
+       DATA SEARCH
+       ========================= */
+
+    .search{
+        margin-bottom:13px;
+    }
+
+    .search input{
+        height:47px;
+        border:0;
+        border-radius:15px;
+        padding-left:43px;
+        background:var(--card);
+        box-shadow:var(--shadow);
+        color:var(--text);
+        font-size:13px;
+    }
+
+    .search span{
+        left:15px;
+        top:13px;
+    }
+
+    /* =========================
+       FORM
+       ========================= */
+
+    #page-form .card{
+        border:0;
+        border-radius:20px;
+        padding:16px;
+        box-shadow:var(--shadow);
+    }
+
+    .form-grid{
+        gap:14px;
+    }
+
+    .form-group label{
+        font-size:12px;
+        margin-bottom:7px;
+    }
+
+    .form-group input,
+    .form-group select{
+        min-height:47px;
+        border:0;
+        border-radius:13px;
+        background:var(--bg);
+        color:var(--text);
+        padding:12px 13px;
+        font-size:13px;
+    }
+
+    .form-group input:focus,
+    .form-group select:focus{
+        box-shadow:0 0 0 3px rgba(18,97,160,.12);
+    }
+
+    .form-actions{
+        gap:9px;
+        margin-top:3px;
+    }
+
+    /* =========================
+       CHART
+       ========================= */
+
+    #page-chart .card{
+        border:0;
+        border-radius:20px;
+        box-shadow:var(--shadow);
+    }
+
+    #page-chart .form-group select{
+        background:var(--bg);
+    }
+
+    .chart-card{
+        padding:15px;
+    }
+
+    .chart-box{
+        height:290px;
+        margin-top:6px;
+    }
+
+    /* =========================
+       PAGINATION
+       ========================= */
+
+    .pagination{
+        margin-top:13px;
+        padding:7px 0;
+        gap:8px;
+    }
+
+    .pagination button{
+        min-height:38px;
+        padding:8px 12px;
+        border-radius:11px;
+        font-size:10px;
+    }
+
+    .pagination span{
+        font-size:10px;
+        white-space:nowrap;
+    }
+
+    /* =========================
+       BOTTOM NAV
+       ========================= */
+
+    .bottom-nav{
+        height:76px;
+        bottom:8px;
+        width:calc(100% - 18px);
+        border:0;
+        border-radius:22px;
+        background:rgba(255,255,255,.94);
+        backdrop-filter:blur(18px);
+        -webkit-backdrop-filter:blur(18px);
+        box-shadow:
+            0 8px 30px rgba(0,0,0,.16),
+            0 1px 3px rgba(0,0,0,.08);
+        overflow:hidden;
+    }
+
+    body.dark-mode .bottom-nav{
+        background:rgba(30,41,59,.94);
+    }
+
+    .nav-btn{
+        position:relative;
+        gap:3px;
+        font-size:9px;
+        transition:.2s;
+    }
+
+    .nav-btn span:first-child{
+        width:38px;
+        height:30px;
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        border-radius:12px;
+        font-size:18px;
+        transition:.2s;
+    }
+
+    .nav-btn.active span:first-child{
+        background:var(--primary-light);
+        transform:translateY(-2px);
+    }
+
+    body.dark-mode .nav-btn.active span:first-child{
+        background:#263b56;
+    }
+
+    .nav-btn.active{
+        font-weight:800;
+    }
+
+    /* Tombol tambah lebih menonjol */
+    .nav-btn[data-page="form"] span:first-child{
+        background:linear-gradient(135deg,#1261a0,#2185d0);
+        color:#fff;
+        width:44px;
+        height:36px;
+        border-radius:14px;
+        font-size:21px;
+        box-shadow:0 5px 13px rgba(18,97,160,.28);
+    }
+
+    .nav-btn[data-page="form"].active span:first-child{
+        transform:translateY(-4px) scale(1.04);
+        background:linear-gradient(135deg,#0b4779,#1261a0);
+    }
+
+    /* =========================
+       MODAL
+       ========================= */
+
+    .modal{
+        padding:12px;
+        align-items:flex-end;
+        background:rgba(5,18,32,.62);
+        backdrop-filter:blur(4px);
+        -webkit-backdrop-filter:blur(4px);
+    }
+
+    .modal-box{
+        width:100%;
+        max-height:88vh;
+        padding:19px;
+        border-radius:24px 24px 18px 18px;
+        box-shadow:0 -8px 40px rgba(0,0,0,.22);
+        animation:mobileSheet .22s ease-out;
+    }
+
+    @keyframes mobileSheet{
+        from{
+            transform:translateY(30px);
+            opacity:0;
+        }
+        to{
+            transform:translateY(0);
+            opacity:1;
+        }
+    }
+
+    .modal-close{
+        width:34px;
+        height:34px;
+        border-radius:10px;
+        background:var(--bg);
+        color:var(--muted);
+    }
+
+    .lock{
+        font-size:32px;
+        margin-top:2px;
+    }
+
+    /* =========================
+       SIDE DRAWER
+       ========================= */
+
+    #side-menu{
+        align-items:stretch;
+        justify-content:flex-end;
+        padding:0;
+    }
+
+    .drawer-box{
+        width:min(330px,88%);
+        border-radius:24px 0 0 24px;
+        padding:19px 15px;
+        animation:drawerIn .22s ease-out;
+    }
+
+    @keyframes drawerIn{
+        from{
+            transform:translateX(40px);
+            opacity:.7;
+        }
+        to{
+            transform:translateX(0);
+            opacity:1;
+        }
+    }
+
+    .drawer-header{
+        padding:5px 4px 14px;
+        margin-bottom:9px;
+    }
+
+    .drawer-header h3{
+        font-size:17px;
+    }
+
+    .drawer-item{
+        min-height:47px;
+        border-radius:13px;
+        font-size:13px;
+        transition:.15s;
+    }
+
+    .drawer-item:active{
+        transform:scale(.98);
+        background:var(--bg);
+    }
+
+    /* =========================
+       NOTICE
+       ========================= */
+
+    .notice{
+        border:0;
+        border-radius:15px;
+        padding:13px;
+        line-height:1.5;
+        box-shadow:var(--shadow);
+    }
+
+    /* =========================
+       FOOTER
+       ========================= */
+
+    .footer-note{
+        padding:5px 10px 0;
+        font-size:10px;
+    }
+
+    /* =========================
+       EMPTY STATE
+       ========================= */
+
+    .empty{
+        min-height:130px;
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        border-radius:18px;
+        background:var(--card);
+        box-shadow:var(--shadow);
+        font-size:12px;
+    }
+
+    /* =========================
+       USER TABLE / AUDIT
+       ========================= */
+
+    .user-table{
+        font-size:10px;
+    }
+
+    .user-table th,
+    .user-table td{
+        padding:7px;
+        white-space:nowrap;
+    }
+
+    /* =========================
+       SWEETALERT MOBILE
+       ========================= */
+
+    .swal2-popup{
+        width:calc(100% - 24px) !important;
+        border-radius:22px !important;
+        padding:20px 15px !important;
+    }
+
+    .swal2-title{
+        font-size:19px !important;
+    }
+
+    .swal2-html-container{
+        font-size:12px !important;
+    }
+}
+
+/* HP SANGAT KECIL */
+@media(max-width:380px){
+
+    .content{
+        padding-left:10px;
+        padding-right:10px;
+    }
+
+    .brand{
+        font-size:12px;
+    }
+
+    .hero h1{
+        font-size:17px;
+    }
+
+    .stat{
+        padding:12px;
+        min-height:94px;
+    }
+
+    .stat-value{
+        font-size:20px;
+    }
+
+    .record{
+        grid-template-columns:minmax(0,1fr) 55px;
+        padding:12px;
+    }
+
+    .record-photo{
+        width:55px;
+        height:55px;
+    }
+
+    .actions{
+        grid-template-columns:1fr 1fr;
+    }
+
+    .nav-btn span:first-child{
+        font-size:17px;
+    }
+}
+
 </style>
 </head>
 
@@ -377,7 +1099,7 @@ body.dark-mode .nav-btn.active{color:#60a5fa}
     <button class="excel-btn" onclick="exportToExcel()">📗 Export ke Excel</button>
 
     <h3 class="section-title">Pelanggaran Terbaru</h3>
-    <div id="recent-list"></div>
+    <div id="recent-list" class="record-list"></div>
 </section>
 
 <!-- DATA -->
@@ -608,7 +1330,12 @@ const SUPABASE_URL = "https://pdhraphbbdjsabhiokgo.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBkaHJhcGhiYmRqc2FiaGlva2dvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkyODMxODUsImV4cCI6MjEwNDg1OTE4NX0.FesFprS6pIbuz1x2YDOw1rKdvjgirWRBt3sPrR5EhpY";
 const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-let currentUser = JSON.parse(localStorage.getItem('user_session')) || null;
+let currentUser = null;
+try {
+    currentUser = JSON.parse(localStorage.getItem('user_session')) || null;
+} catch (e) {
+    localStorage.removeItem('user_session');
+}
 let records = [];
 let usersList = [];
 let myChart = null;
@@ -618,7 +1345,7 @@ let currentPage = 1;
 const rowsPerPage = 10;
 let filteredRecordsCache = [];
 
-document.getElementById('tanggal').value = new Date().toISOString().split('T')[0];
+document.getElementById('tanggal').value = getLocalDateISO();
 
 function toggleTheme() {
     document.body.classList.toggle('dark-mode');
@@ -1003,143 +1730,587 @@ function updateStats(){
 function getGroups(data, filterType){
     const groups = {};
 
+    // ==========================================
+    // BERDASARKAN KELAS
+    // ==========================================
     if(filterType === 'kelas'){
         data.forEach(item => {
-            const k = (item.kelas || 'Tanpa Kelas').toUpperCase().trim();
+            const k = (item.kelas || 'Tanpa Kelas')
+                .toUpperCase()
+                .trim();
+
             groups[k] = (groups[k] || 0) + 1;
         });
-        return Object.entries(groups).sort((a,b)=>a[0].localeCompare(b[0]));
+
+        return Object.entries(groups)
+            .sort((a,b) => a[0].localeCompare(b[0]));
     }
 
+    // ==========================================
+    // BERDASARKAN TINGKAT
+    // ==========================================
     if(filterType === 'tingkat'){
-        groups['Kelas 7'] = 0; groups['Kelas 8'] = 0; groups['Kelas 9'] = 0; groups['Lainnya'] = 0;
+        groups['Kelas 7'] = 0;
+        groups['Kelas 8'] = 0;
+        groups['Kelas 9'] = 0;
+        groups['Lainnya'] = 0;
 
         data.forEach(item => {
-            const k = (item.kelas || '').toString().toUpperCase().trim();
+            const k = (item.kelas || '')
+                .toString()
+                .toUpperCase()
+                .trim();
+
             let matched = false;
-            if (k.includes('8') || k.includes('VIII')) { groups['Kelas 8']++; matched = true; } 
-            else if (k.includes('7') || k.includes('VII')) { groups['Kelas 7']++; matched = true; } 
-            else if (k.includes('9') || k.includes('IX')) { groups['Kelas 9']++; matched = true; }
-            if (!matched) groups['Lainnya']++;
+
+            if(k.includes('8') || k.includes('VIII')){
+                groups['Kelas 8']++;
+                matched = true;
+            }
+            else if(k.includes('7') || k.includes('VII')){
+                groups['Kelas 7']++;
+                matched = true;
+            }
+            else if(k.includes('9') || k.includes('IX')){
+                groups['Kelas 9']++;
+                matched = true;
+            }
+
+            if(!matched){
+                groups['Lainnya']++;
+            }
         });
 
-        Object.keys(groups).forEach(key => { if (groups[key] === 0) delete groups[key]; });
+        Object.keys(groups).forEach(key => {
+            if(groups[key] === 0){
+                delete groups[key];
+            }
+        });
+
         return Object.entries(groups);
     }
 
+    // ==========================================
+    // BERDASARKAN MINGGU
+    // ==========================================
     if(filterType === 'minggu'){
         const weeklyData = {};
+
         data.forEach(item => {
             if(!item.tanggal) return;
-            const d = new Date(item.tanggal);
+
+            const d = parseDateOnly(item.tanggal);
+        if (!d) return;
             if(isNaN(d)) return;
-            
+
             const target = new Date(d.valueOf());
             const dayNr = (d.getDay() + 6) % 7;
-            target.setDate(target.getDate() - dayNr + 3);
-            const firstThursday = new Date(target.getFullYear(), 0, 4);
-            const firstDayNr = (firstThursday.getDay() + 6) % 7;
-            firstThursday.setDate(firstThursday.getDate() - firstDayNr + 3);
-            const weekNum = Math.floor((target - firstThursday) / (7 * 86400000)) + 1;
-            const weekKey = `Minggu ${weekNum} (${d.getFullYear()})`;
-            
-            weeklyData[weekKey] = (weeklyData[weekKey] || 0) + 1;
+
+            target.setDate(
+                target.getDate() - dayNr + 3
+            );
+
+            const firstThursday = new Date(
+                target.getFullYear(),
+                0,
+                4
+            );
+
+            const firstDayNr =
+                (firstThursday.getDay() + 6) % 7;
+
+            firstThursday.setDate(
+                firstThursday.getDate() -
+                firstDayNr +
+                3
+            );
+
+            const weekNum =
+                Math.floor(
+                    (target - firstThursday) /
+                    (7 * 86400000)
+                ) + 1;
+
+            const weekKey =
+                `Minggu ${weekNum} (${d.getFullYear()})`;
+
+            weeklyData[weekKey] =
+                (weeklyData[weekKey] || 0) + 1;
         });
+
         return Object.entries(weeklyData);
     }
 
+    // ==========================================
+    // BERDASARKAN BULAN
+    // ==========================================
     if(filterType === 'bulan'){
-        const monthNames = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agt", "Sep", "Okt", "Nov", "Des"];
+        const monthNames = [
+            "Jan", "Feb", "Mar", "Apr",
+            "Mei", "Jun", "Jul", "Agt",
+            "Sep", "Okt", "Nov", "Des"
+        ];
+
         const monthlyData = {};
+
         data.forEach(item => {
-            if(!item.tanggal) return;
-            const parts = item.tanggal.split('-');
-            if(parts.length >= 2){
-                const year = parts[0];
-                const monthIndex = parseInt(parts[1], 10) - 1;
-                if(monthIndex >= 0 && monthIndex < 12){
-                    const key = `${monthNames[monthIndex]} ${year}`;
-                    monthlyData[key] = (monthlyData[key] || 0) + 1;
-                }
-            }
+            if(!formatTanggalIndonesia(item.tanggal)) return;
+
+            const parts = item.tanggal.substring(0, 10).split('-');
+
+if(parts.length === 3){
+    const year = parts[0];
+    const monthIndex = parseInt(parts[1], 10) - 1;
+
+    if(monthIndex >= 0 && monthIndex < 12){
+        const key = `${monthNames[monthIndex]} ${year}`;
+        monthlyData[key] = (monthlyData[key] || 0) + 1;
+    }
+}
         });
+
         return Object.entries(monthlyData);
     }
 
+    // ==========================================
+    // JENIS PELANGGARAN
+    // ==========================================
+
+    /*
+     * Fungsi untuk menentukan kategori berdasarkan
+     * kata-kata yang ada di dalam tulisan guru.
+     */
+    function detectViolationCategories(text){
+
+        const categories = [];
+
+        const t = text
+            .toLowerCase()
+            .replace(/[.,;:\/\\|+&]/g, ' ');
+
+        // --------------------------------------
+        // TERLAMBAT
+        // --------------------------------------
+        if(
+            /\btelat\b/.test(t) ||
+            /\bterlambat\b/.test(t) ||
+            /\bketerlambatan\b/.test(t) ||
+            t.includes('datang terlambat') ||
+            t.includes('datang telat')
+        ){
+            categories.push('Terlambat');
+        }
+
+        // --------------------------------------
+        // MEROKOK
+        // --------------------------------------
+        if(
+            /\brokok\b/.test(t) ||
+            /\bmerokok\b/.test(t) ||
+            t.includes('ketahuan merokok')
+        ){
+            categories.push('Merokok');
+        }
+
+        // --------------------------------------
+        // ATRIBUT / SERAGAM
+        // --------------------------------------
+        if(
+            t.includes('baju') ||
+            t.includes('seragam') ||
+            t.includes('atribut') ||
+            t.includes('pakaian') ||
+            t.includes('tidak lengkap') ||
+            t.includes('kelengkapan') ||
+            t.includes('kaos kaki') ||
+            t.includes('sabuk') ||
+            t.includes('ikat pinggang') ||
+            t.includes('topi') ||
+            t.includes('dasi') ||
+            t.includes('sepatu') ||
+            t.includes('hijab') ||
+            t.includes('jilbab') ||
+            t.includes('bergo')
+        ){
+            categories.push('Atribut/Seragam');
+        }
+
+        // --------------------------------------
+        // RAMBUT
+        // --------------------------------------
+        if(
+            t.includes('rambut') ||
+            t.includes('gondrong') ||
+            t.includes('model rambut') ||
+            t.includes('potongan rambut')
+        ){
+            categories.push('Rambut');
+        }
+
+        // --------------------------------------
+        // BOLOS / TIDAK HADIR
+        // --------------------------------------
+        if(
+            t.includes('bolos') ||
+            t.includes('membolos') ||
+            t.includes('tidak masuk') ||
+            t.includes('tidak hadir') ||
+            /\balpa\b/.test(t) ||
+            t.includes('tanpa keterangan') ||
+            t.includes('kabur')
+        ){
+            categories.push('Bolos/Tidak Hadir');
+        }
+
+        // --------------------------------------
+        // HP / HANDPHONE
+        // --------------------------------------
+        if(
+            /\bhp\b/.test(t) ||
+            t.includes('handphone') ||
+            t.includes('hand phone') ||
+            t.includes('ponsel') ||
+            t.includes('smartphone') ||
+            t.includes('main hp') ||
+            t.includes('bermain hp')
+        ){
+            categories.push('HP/Handphone');
+        }
+
+        // --------------------------------------
+        // BERKELAHI / KEKERASAN
+        // --------------------------------------
+        if(
+            t.includes('berkelahi') ||
+            t.includes('berantem') ||
+            t.includes('tawuran') ||
+            t.includes('memukul') ||
+            t.includes('pukul') ||
+            t.includes('kekerasan') ||
+            t.includes('perkelahian')
+        ){
+            categories.push('Berkelahi/Kekerasan');
+        }
+
+        // --------------------------------------
+        // KETERTIBAN / PERILAKU
+        // --------------------------------------
+        if(
+            t.includes('gaduh') ||
+            t.includes('ribut') ||
+            t.includes('mengganggu') ||
+            t.includes('tidak tertib') ||
+            t.includes('tidak sopan') ||
+            t.includes('ketertiban') ||
+            t.includes('perilaku') ||
+            t.includes('mengganggu teman')
+        ){
+            categories.push('Ketertiban/Perilaku');
+        }
+
+        return categories;
+    }
+
+
+    // ==========================================
+    // PROSES SEMUA DATA PELANGGARAN
+    // ==========================================
+
     data.forEach(item => {
-        const raw = (item.pelanggaran || '').trim();
+
+        const raw =
+            (item.pelanggaran || '').trim();
+
         if(!raw) return;
-        const key = raw.toLowerCase();
-        const formatted = key.replace(/\b\w/g, c => c.toUpperCase());
-        groups[formatted] = (groups[formatted] || 0) + 1;
-    });
-    return Object.entries(groups).sort((a,b)=>b[1]-a[1]);
-}
 
-function updateChart(data){
-    const filterType = document.getElementById('chart-filter')?.value || 'jenis';
-    const sorted = getGroups(data, filterType);
-    const labels = sorted.map(x=>x[0]);
-    const values = sorted.map(x=>x[1]);
+        const detected =
+            detectViolationCategories(raw);
 
-    const ctx = document.getElementById('pelanggaranChart');
-    if(!ctx)return;
-    if(myChart)myChart.destroy();
+        // Jika ditemukan satu atau lebih kategori
+        if(detected.length > 0){
 
-    const isDark = document.body.classList.contains('dark-mode');
-    const textColor = isDark ? '#f8fafc' : '#172033';
-    const gridColor = isDark ? '#334155' : '#e5eaf0';
-    const lineColor = isDark ? '#60a5fa' : '#1261a0';
-    const lineBgColor = isDark ? 'rgba(96, 165, 250, 0.25)' : 'rgba(18, 97, 160, 0.2)';
+            detected.forEach(category => {
 
-    let chartType = 'bar';
-    if(filterType === 'tingkat') chartType = 'pie';
-    if(filterType === 'bulan' || filterType === 'minggu') chartType = 'line';
+                groups[category] =
+                    (groups[category] || 0) + 1;
 
-    const colors = [
-        'rgba(54, 162, 235, 0.85)', 'rgba(255, 99, 132, 0.85)',
-        'rgba(255, 206, 86, 0.85)', 'rgba(75, 192, 192, 0.85)',
-        'rgba(153, 102, 255, 0.85)', 'rgba(255, 159, 64, 0.85)',
-        'rgba(46, 204, 113, 0.85)', 'rgba(231, 76, 60, 0.85)'
-    ];
+            });
 
-    myChart = new Chart(ctx, {
-        type: chartType,
-        data: {
-            labels: labels.length ? labels : ['Belum Ada Data'],
-            datasets: [{
-                label: 'Jumlah Kasus',
-                data: values.length ? values : [0],
-                backgroundColor: chartType === 'line' ? lineBgColor : colors,
-                borderColor: chartType === 'line' ? lineColor : colors.map(c => c.replace('0.85', '1')),
-                borderWidth: 2,
-                fill: chartType === 'line',
-                tension: 0.3,
-                borderRadius: chartType === 'bar' ? 6 : 0
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    display: chartType === 'pie',
-                    position: 'bottom',
-                    labels: { color: textColor, font: { size: 12, weight: 'bold' } }
-                }
-            },
-            scales: chartType !== 'pie' ? {
-                y: { beginAtZero: true, ticks: { stepSize: 1, precision: 0, color: textColor }, grid: { color: gridColor } },
-                x: { ticks: { autoSkip: false, maxRotation: 45, minRotation: 0, color: textColor }, grid: { color: gridColor } }
-            } : {}
+        }
+
+        // Jika tidak dikenali kategori mana pun
+        else{
+
+            const formatted =
+                raw.replace(
+                    /\b\w/g,
+                    c => c.toUpperCase()
+                );
+
+            groups[formatted] =
+                (groups[formatted] || 0) + 1;
         }
     });
+
+
+    // ==========================================
+    // URUTKAN DARI TERBANYAK
+    // ==========================================
+    return Object.entries(groups)
+        .sort((a,b) => b[1] - a[1]);
 }
 
+
+function updateChart(data = records) {
+    const canvas = document.getElementById('pelanggaranChart');
+    const filterEl = document.getElementById('chart-filter');
+
+    if (!canvas || typeof Chart === 'undefined') return;
+
+    const filterType = filterEl ? filterEl.value : 'jenis';
+
+    // Hapus chart sebelumnya
+    if (myChart) {
+        myChart.destroy();
+        myChart = null;
+    }
+
+    const grouped = getGroups(data, filterType);
+
+    const labels = grouped.map(item => item[0]);
+    const values = grouped.map(item => item[1]);
+
+    const ctx = canvas.getContext('2d');
+
+    // ==========================================
+    // WARNA GRAFIK
+    // ==========================================
+
+    const colors = [
+        '#3B82F6',
+        '#EF4444',
+        '#10B981',
+        '#F59E0B',
+        '#8B5CF6',
+        '#EC4899',
+        '#06B6D4',
+        '#F97316',
+        '#84CC16',
+        '#6366F1',
+        '#14B8A6',
+        '#E11D48'
+    ];
+
+    const borderColors = [
+        '#2563EB',
+        '#DC2626',
+        '#059669',
+        '#D97706',
+        '#7C3AED',
+        '#DB2777',
+        '#0891B2',
+        '#EA580C',
+        '#65A30D',
+        '#4F46E5',
+        '#0D9488',
+        '#BE123C'
+    ];
+
+    // ==========================================
+    // KHUSUS PER TINGKAT → PIE CHART
+    // ==========================================
+
+    if (filterType === 'tingkat') {
+
+        myChart = new Chart(ctx, {
+            type: 'pie',
+
+            data: {
+                labels: labels,
+
+                datasets: [{
+                    data: values,
+
+                    backgroundColor: colors.slice(
+                        0,
+                        labels.length
+                    ),
+
+                    borderColor: '#ffffff',
+
+                    borderWidth: 3,
+
+                    hoverOffset: 12
+                }]
+            },
+
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+
+                plugins: {
+
+                    legend: {
+                        position: 'bottom',
+
+                        labels: {
+                            padding: 18,
+                            usePointStyle: true,
+                            font: {
+                                size: 13,
+                                weight: 'bold'
+                            }
+                        }
+                    },
+
+                    tooltip: {
+                        callbacks: {
+
+                            label: function(context) {
+
+                                const total =
+                                    context.dataset.data
+                                    .reduce(
+                                        (sum, value) =>
+                                            sum + value,
+                                        0
+                                    );
+
+                                const value = context.raw;
+
+                                const percentage =
+                                    total > 0
+                                    ? ((value / total) * 100)
+                                        .toFixed(1)
+                                    : 0;
+
+                                return ` ${context.label}: ${value} kasus (${percentage}%)`;
+                            }
+
+                        }
+                    }
+                }
+            }
+        });
+
+        return;
+    }
+
+    // ==========================================
+    // JENIS / KELAS → BAR
+    // MINGGU / BULAN → LINE
+    // ==========================================
+
+    const isTrend =
+        filterType === 'minggu' ||
+        filterType === 'bulan';
+
+    myChart = new Chart(ctx, {
+
+        type: isTrend ? 'line' : 'bar',
+
+        data: {
+            labels: labels,
+
+            datasets: [{
+                label:
+                    filterType === 'jenis'
+                        ? 'Jumlah Pelanggaran'
+                        : filterType === 'kelas'
+                        ? 'Pelanggaran per Kelas'
+                        : filterType === 'minggu'
+                        ? 'Pelanggaran per Minggu'
+                        : 'Pelanggaran per Bulan',
+
+                data: values,
+
+                backgroundColor: colors.slice(
+                    0,
+                    labels.length
+                ),
+
+                borderColor: isTrend
+                    ? '#3B82F6'
+                    : borderColors.slice(
+                        0,
+                        labels.length
+                    ),
+
+                borderWidth: 2,
+
+                borderRadius: isTrend ? 0 : 7,
+
+                tension: isTrend ? 0.35 : 0,
+
+                fill: false
+            }]
+        },
+
+        options: {
+
+            responsive: true,
+
+            maintainAspectRatio: false,
+
+            plugins: {
+
+                legend: {
+                    display: isTrend,
+
+                    position: 'bottom'
+                },
+
+                tooltip: {
+                    callbacks: {
+
+                        label: function(context) {
+
+                            return ` ${context.raw} kasus`;
+
+                        }
+
+                    }
+                }
+
+            },
+
+            scales: {
+
+                x: {
+
+                    ticks: {
+                        autoSkip: true,
+                        maxRotation: 45,
+                        minRotation: 0
+                    }
+
+                },
+
+                y: {
+
+                    beginAtZero: true,
+
+                    ticks: {
+                        precision: 0,
+                        stepSize: 1
+                    }
+
+                }
+
+            }
+
+        }
+
+    });
+}
 function renderRecent(){
     const box = document.getElementById('recent-list');
     if(!box)return;
-    const latest = [...records].slice(-6).reverse();
+    const latest = [...records].sort((a, b) => {
+        const da = String(a.tanggal || '').substring(0, 10);
+        const db = String(b.tanggal || '').substring(0, 10);
+        return db.localeCompare(da) || Number(b.id || 0) - Number(a.id || 0);
+    }).slice(0, 6);
     if(!latest.length){
         box.innerHTML = '<div class="empty">Belum ada data pelanggaran.</div>';
         return;
@@ -1162,7 +2333,7 @@ function recordCard(item){
 
     return `<div class="record">
         <div class="record-main">
-            <div class="record-date">📅 ${escapeHtml(item.tanggal||'-')}</div>
+            <div class="record-date">📅 ${escapeHtml(formatTanggalIndonesia(item.tanggal)||'-')}</div>
             <div class="record-name">${escapeHtml(item.nama||'-')}</div>
             <div class="record-meta">🏫 Kelas ${escapeHtml(item.kelas||'-')}</div>
             <div class="record-violation">⚠️ ${escapeHtml(item.pelanggaran||'-')}</div>
@@ -1200,7 +2371,7 @@ function renderTable(){
                 const absoluteNo = start + index + 1;
                 tr.innerHTML = `
                     <td>${absoluteNo}</td>
-                    <td>${escapeHtml(item.tanggal||'-')}</td>
+                    <td>${escapeHtml(formatTanggalIndonesia(item.tanggal)||'-')}</td>
                     <td>${escapeHtml(item.nama||'-')}</td>
                     <td>${escapeHtml(item.kelas||'-')}</td>
                     <td>${escapeHtml(item.pelanggaran||'-')}</td>
@@ -1297,8 +2468,9 @@ async function loadData(){
 }
 
 async function kirimWhatsAppManual(namaSiswa, kelasSiswa) {
-    const cleanName = namaSiswa.trim().toLowerCase();
-    const listSiswa = records.filter(r => (r.nama || '').trim().toLowerCase().includes(cleanName) || cleanName.includes((r.nama || '').trim().toLowerCase()));
+    const cleanName = normalizeName(namaSiswa);
+    const cleanClass = normalizeName(kelasSiswa);
+    const listSiswa = records.filter(r => normalizeName(r.nama) === cleanName && normalizeName(r.kelas) === cleanClass);
     const totalCount = listSiswa.length;
 
     const result = await Swal.fire({
@@ -1319,7 +2491,7 @@ async function kirimWhatsAppManual(namaSiswa, kelasSiswa) {
         let phone = result.value.trim().replace(/[^0-9]/g, '');
         if (phone.startsWith('0')) phone = '62' + phone.slice(1);
 
-        const daftarPelanggaran = listSiswa.map((item, idx) => `${idx + 1}. ${item.pelanggaran} (${item.tanggal})`).join('\n');
+        const daftarPelanggaran = listSiswa.map((item, idx) => `${idx + 1}. ${item.pelanggaran} (${formatTanggalIndonesia(item.tanggal)})`).join('\n');
         const message = `Yth. Bapak/Ibu Wali Murid / Wali Kelas dari *${namaSiswa}* (${kelasSiswa}).\n\nBerikut menginformasikan catatan pelanggaran siswa di SMP Gelora Bekasi:\n*Total Pelanggaran:* ${totalCount} kali\n\nRiwayat Pelanggaran:\n${daftarPelanggaran}\n\nMohon untuk dilakukan pembinaan bersama.\n\nTerima kasih.\n*SMP Gelora Bekasi*`;
 
         window.open(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`, '_blank');
@@ -1327,8 +2499,9 @@ async function kirimWhatsAppManual(namaSiswa, kelasSiswa) {
 }
 
 async function checkPelanggaranCountAndPrompt(namaSiswa, kelasSiswa) {
-    const cleanName = namaSiswa.trim().toLowerCase();
-    const listSiswa = records.filter(r => (r.nama || '').trim().toLowerCase().includes(cleanName) || cleanName.includes((r.nama || '').trim().toLowerCase()));
+    const cleanName = normalizeName(namaSiswa);
+    const cleanClass = normalizeName(kelasSiswa);
+    const listSiswa = records.filter(r => normalizeName(r.nama) === cleanName && normalizeName(r.kelas) === cleanClass);
     const totalCount = listSiswa.length;
 
     if (totalCount >= 3) {
@@ -1350,7 +2523,7 @@ async function checkPelanggaranCountAndPrompt(namaSiswa, kelasSiswa) {
             let phone = result.value.trim().replace(/[^0-9]/g, '');
             if (phone.startsWith('0')) phone = '62' + phone.slice(1);
 
-            const daftarPelanggaran = listSiswa.map((item, idx) => `${idx + 1}. ${item.pelanggaran} (${item.tanggal})`).join('\n');
+            const daftarPelanggaran = listSiswa.map((item, idx) => `${idx + 1}. ${item.pelanggaran} (${formatTanggalIndonesia(item.tanggal)})`).join('\n');
             const message = `Yth. Bapak/Ibu Orang Tua/Wali dari *${namaSiswa}* (${kelasSiswa}).\n\nBermaksud menginformasikan bahwa siswa tersebut telah mencapai *${totalCount} kali pelanggaran* di SMP Gelora Bekasi.\n\nRiwayat Pelanggaran:\n${daftarPelanggaran}\n\nSehubungan dengan hal tersebut, kami mengundang Bapak/Ibu hadir ke sekolah untuk bimbingan konseling.\n\nTerima kasih.\n*SMP Gelora Bekasi*`;
 
             window.open(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`, '_blank');
@@ -1386,6 +2559,12 @@ async function simpanData(){
     btn.disabled = true;
     btn.textContent = 'Mengolah...';
     let fotoUrl = null;
+    let uploadedFotoPath = null;
+    let oldFotoUrl = null;
+    if (editId) {
+        const oldItem = records.find(r => String(r.id) === String(editId));
+        oldFotoUrl = oldItem?.foto_url || null;
+    }
 
     try{
         if(fotoInput){
@@ -1403,6 +2582,7 @@ async function simpanData(){
                 .from('foto-pelanggaran').getPublicUrl(fileName);
 
             fotoUrl = publicUrlData.publicUrl;
+            uploadedFotoPath = fileName;
         }
 
         if(editId){
@@ -1411,6 +2591,13 @@ async function simpanData(){
 
             const {error} = await _supabase.from('pelanggaran').update(payload).eq('id', editId);
             if(error) throw error;
+
+            if (fotoUrl && oldFotoUrl && oldFotoUrl !== fotoUrl) {
+                const marker = '/storage/v1/object/public/foto-pelanggaran/';
+                const idx = oldFotoUrl.indexOf(marker);
+                const oldPath = idx >= 0 ? decodeURIComponent(oldFotoUrl.slice(idx + marker.length)) : null;
+                if (oldPath) await _supabase.storage.from('foto-pelanggaran').remove([oldPath]);
+            }
             
             await catatLog('EDIT', `Mengubah pelanggaran siswa: ${nama} (${kelas})`);
             Swal.fire({
@@ -1440,6 +2627,9 @@ async function simpanData(){
         await checkPelanggaranCountAndPrompt(nama, kelas);
 
     } catch(err){
+        if (uploadedFotoPath) {
+            try { await _supabase.storage.from('foto-pelanggaran').remove([uploadedFotoPath]); } catch (cleanupErr) { console.warn('Gagal membersihkan foto upload:', cleanupErr); }
+        }
         console.error(err);
         Swal.fire({
             icon: 'error',
@@ -1454,15 +2644,16 @@ async function simpanData(){
 }
 
 function cetakSuratPanggilan(namaSiswa, kelasSiswa) {
-    const cleanName = namaSiswa.trim().toLowerCase();
-    const listSiswa = records.filter(r => (r.nama || '').trim().toLowerCase().includes(cleanName) || cleanName.includes((r.nama || '').trim().toLowerCase()));
+    const cleanName = normalizeName(namaSiswa);
+    const cleanClass = normalizeName(kelasSiswa);
+    const listSiswa = records.filter(r => normalizeName(r.nama) === cleanName && normalizeName(r.kelas) === cleanClass);
     const totalCount = listSiswa.length;
     const tgl = new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
 
     let tabelPelanggaranHtml = listSiswa.map((item, idx) => `
         <tr>
             <td style="border:1px solid #000; padding:5px 6px; text-align:center;">${idx + 1}</td>
-            <td style="border:1px solid #000; padding:5px 6px; text-align:center;">${item.tanggal || '-'}</td>
+            <td style="border:1px solid #000; padding:5px 6px; text-align:center;">${formatTanggalIndonesia(item.tanggal) || '-'}</td>
             <td style="border:1px solid #000; padding:5px 6px;">${item.pelanggaran || '-'}</td>
         </tr>
     `).join('');
@@ -1574,7 +2765,9 @@ function editData(id){
     if(!item)return;
 
     document.getElementById('edit-id').value = item.id;
-    document.getElementById('tanggal').value = item.tanggal||'';
+    document.getElementById('tanggal').value = item.tanggal
+    ? item.tanggal.substring(0, 10)
+    : '';
     document.getElementById('nama').value = item.nama||'';
     document.getElementById('kelas').value = item.kelas||'';
     document.getElementById('pelanggaran').value = item.pelanggaran||'';
@@ -1588,7 +2781,7 @@ function editData(id){
 function batalEdit(){
     const edit = document.getElementById('edit-id');
     if(edit) edit.value = '';
-    document.getElementById('tanggal').value = new Date().toISOString().split('T')[0];
+    document.getElementById('tanggal').value = getLocalDateISO();
     document.getElementById('nama').value = '';
     document.getElementById('kelas').value = '';
     document.getElementById('pelanggaran').value = '';
@@ -1622,8 +2815,10 @@ async function hapusData(id){
 
     try{
         if(item?.foto_url){
-            const url = item.foto_url.split('/').pop();
-            if(url) await _supabase.storage.from('foto-pelanggaran').remove([url]);
+            const marker = '/storage/v1/object/public/foto-pelanggaran/';
+            const idx = item.foto_url.indexOf(marker);
+            const path = idx >= 0 ? decodeURIComponent(item.foto_url.slice(idx + marker.length)) : null;
+            if(path) await _supabase.storage.from('foto-pelanggaran').remove([path]);
         }
         const {error} = await _supabase.from('pelanggaran').delete().eq('id', id);
         if(error) throw error;
@@ -1656,8 +2851,8 @@ async function exportToExcel(){
         confirmButtonColor: '#1261a0'
     });
 
-    const today = new Date().toISOString().split('T')[0];
-    const pastDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    const today = getLocalDateISO();
+    const pastDate = getLocalDateISO(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000));
 
     const { value: formValues } = await Swal.fire({
         title: '📗 Export ke Excel',
@@ -1693,9 +2888,13 @@ async function exportToExcel(){
     if (!formValues) return;
 
     const filteredRecords = records.filter(item => {
-        if (!item.tanggal) return false;
-        return item.tanggal >= formValues.tglAwal && item.tanggal <= formValues.tglAkhir;
-    });
+    const tanggal = item.tanggal
+        ? item.tanggal.substring(0, 10)
+        : '';
+
+    return tanggal >= formValues.tglAwal &&
+           tanggal <= formValues.tglAkhir;
+});
 
     if (!filteredRecords.length) {
         return Swal.fire({
@@ -1742,7 +2941,7 @@ async function exportToExcel(){
         for(let i=0; i<filteredRecords.length; i++){
             const item = filteredRecords[i];
             const row = ws.addRow([
-                i+1, item.tanggal||'-', item.nama||'-', item.kelas||'-',
+                i+1, formatTanggalIndonesia(item.tanggal)||'-', item.nama||'-', item.kelas||'-',
                 item.pelanggaran||'-', ''
             ]);
             row.height = 65;
@@ -1817,6 +3016,38 @@ function toggleAudio(){
         text.textContent = "Putar Musik";
         icon.textContent = "🎵";
     }
+}
+
+function getLocalDateISO(date = new Date()) {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+}
+
+function parseDateOnly(value) {
+    const s = String(value || '').substring(0, 10);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return null;
+    const [y, m, d] = s.split('-').map(Number);
+    const date = new Date(y, m - 1, d);
+    return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function normalizeName(value) {
+    return String(value || '').trim().toLowerCase().replace(/\s+/g, ' ');
+}
+
+function formatTanggalIndonesia(tanggal) {
+    if (!tanggal) return '-';
+
+    const [tahun, bulan, hari] = tanggal.substring(0, 10).split('-');
+
+    const namaBulan = [
+        'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+        'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+    ];
+
+    return `${parseInt(hari)} ${namaBulan[parseInt(bulan) - 1]} ${tahun}`;
 }
 
 loadData();
