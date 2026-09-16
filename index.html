@@ -306,6 +306,53 @@ body.dark-mode .nav-btn.active{color:#60a5fa}
 .desktop-table{display:none}
 .footer-note{text-align:center;color:#98a2b3;font-size:11px;margin-top:22px;line-height:1.5}
 
+
+/* FOTO LIGHTBOX */
+.photo-lightbox{
+    position:fixed;
+    inset:0;
+    z-index:99999;
+    display:none;
+    align-items:center;
+    justify-content:center;
+    padding:24px;
+    background:rgba(0,0,0,.78);
+    backdrop-filter:blur(4px);
+}
+.photo-lightbox.show{display:flex}
+.photo-lightbox img{
+    display:block;
+    max-width:min(92vw,1100px);
+    max-height:88vh;
+    width:auto;
+    height:auto;
+    object-fit:contain;
+    border-radius:12px;
+    box-shadow:0 18px 60px rgba(0,0,0,.45);
+    cursor:zoom-out;
+    animation:photoLightboxIn .18s ease-out;
+}
+.photo-lightbox-close{
+    position:absolute;
+    top:16px;
+    right:18px;
+    width:42px;
+    height:42px;
+    border:0;
+    border-radius:50%;
+    background:rgba(255,255,255,.16);
+    color:#fff;
+    font-size:28px;
+    line-height:42px;
+    cursor:pointer;
+}
+.photo-lightbox-close:hover{background:rgba(255,255,255,.28)}
+@keyframes photoLightboxIn{
+    from{opacity:0;transform:scale(.94)}
+    to{opacity:1;transform:scale(1)}
+}
+.record-photo, td img{cursor:zoom-in}
+
 @media(min-width:700px){
     body{padding:20px}
     .app{border-radius:16px;overflow:hidden;box-shadow:0 8px 35px rgba(0,0,0,.1)}
@@ -1059,6 +1106,12 @@ body.dark-mode .nav-btn.active{color:#60a5fa}
 </head>
 
 <body>
+
+<div id="photo-lightbox" class="photo-lightbox" aria-hidden="true" onclick="closePhotoLightbox(event)">
+    <button type="button" class="photo-lightbox-close" aria-label="Tutup" onclick="closePhotoLightbox(event)">×</button>
+    <img id="photo-lightbox-img" src="" alt="Foto bukti pelanggaran" onclick="closePhotoLightbox(event)">
+</div>
+
 <div class="app">
 
 <header class="topbar">
@@ -2320,7 +2373,7 @@ function renderRecent(){
 
 function recordCard(item){
     const photo = item.foto_url
-        ? `<a href="${escapeAttr(item.foto_url)}" target="_blank"><img class="record-photo" src="${escapeAttr(item.foto_url)}"></a>`
+        ? `<img class="record-photo" src="${escapeAttr(item.foto_url)}" alt="Foto bukti" onclick="openPhotoLightbox('${escapeAttr(item.foto_url)}')">`
         : `<div class="record-photo" style="display:flex;align-items:center;justify-content:center;background:var(--border)">📷</div>`;
 
     const actions = currentUser ? `
@@ -2375,7 +2428,7 @@ function renderTable(){
                     <td>${escapeHtml(item.nama||'-')}</td>
                     <td>${escapeHtml(item.kelas||'-')}</td>
                     <td>${escapeHtml(item.pelanggaran||'-')}</td>
-                    <td>${item.foto_url ? `<a href="${escapeAttr(item.foto_url)}" target="_blank"><img src="${escapeAttr(item.foto_url)}"></a>` : '-'}</td>
+                    <td>${item.foto_url ? `<img src="${escapeAttr(item.foto_url)}" alt="Foto bukti" onclick="openPhotoLightbox('${escapeAttr(item.foto_url)}')">` : '-'}</td>
                     <td>${currentUser ? `
                         <button class="notify-btn" onclick="kirimWhatsAppManual('${escapeAttr(item.nama)}', '${escapeAttr(item.kelas)}')">💬 WA Wali</button>
                         <button class="print-btn" onclick="cetakSuratPanggilan('${escapeAttr(item.nama)}', '${escapeAttr(item.kelas)}')">Cetak</button>
@@ -3049,6 +3102,35 @@ function formatTanggalIndonesia(tanggal) {
 
     return `${parseInt(hari)} ${namaBulan[parseInt(bulan) - 1]} ${tahun}`;
 }
+
+
+function openPhotoLightbox(url){
+    if(!url) return;
+    const box = document.getElementById('photo-lightbox');
+    const img = document.getElementById('photo-lightbox-img');
+    if(!box || !img) return;
+    img.src = url;
+    box.classList.add('show');
+    box.setAttribute('aria-hidden', 'false');
+    document.body.style.overflow = 'hidden';
+}
+
+function closePhotoLightbox(event){
+    if(event && event.target && event.target.id === 'photo-lightbox-img') return;
+    const box = document.getElementById('photo-lightbox');
+    const img = document.getElementById('photo-lightbox-img');
+    if(!box || !img) return;
+    box.classList.remove('show');
+    box.setAttribute('aria-hidden', 'true');
+    img.src = '';
+    document.body.style.overflow = '';
+}
+
+document.addEventListener('keydown', function(e){
+    if(e.key === 'Escape'){
+        closePhotoLightbox();
+    }
+});
 
 loadData();
 </script>
