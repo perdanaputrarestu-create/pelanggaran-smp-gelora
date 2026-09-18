@@ -247,7 +247,7 @@ body.dark-mode .record-meta{color:#94a3b8}
     position:fixed;left:50%;bottom:0;transform:translateX(-50%);
     width:min(1180px,100%);
     height:68px;background:#fff;border-top:1px solid var(--border);
-    display:grid;grid-template-columns:repeat(4,1fr);
+    display:grid;grid-template-columns:repeat(5,1fr);
     z-index:60;box-shadow:0 -4px 15px rgba(0,0,0,.08);
 }
 .nav-btn{
@@ -305,7 +305,6 @@ body.dark-mode .nav-btn.active{color:#60a5fa}
 
 .desktop-table{display:none}
 .footer-note{text-align:center;color:#98a2b3;font-size:11px;margin-top:22px;line-height:1.5}
-
 
 /* FOTO LIGHTBOX */
 .photo-lightbox{
@@ -1236,6 +1235,19 @@ body.dark-mode .nav-btn.active{color:#60a5fa}
     </div>
 </section>
 
+<!-- REPORT 3X PELANGGARAN -->
+<section id="page-report" class="page">
+    <h2 class="section-title" style="margin-top:0">🚨 Report 3x Pelanggaran</h2>
+    <div class="notice">Siswa otomatis masuk report setelah mencapai <strong>3 kali atau lebih</strong> pelanggaran. Status tindak lanjut dapat diperbarui oleh Admin.</div>
+    <div class="card">
+        <div class="search" style="margin-bottom:12px;">
+            <span>🔍</span><input id="report-search" type="text" placeholder="Cari nama siswa atau kelas..." oninput="renderThreeStrikeReport()">
+        </div>
+        <button class="excel-btn" style="margin-bottom:12px" onclick="exportThreeStrikeReport()">📗 Export Report 3x ke Excel</button>
+        <div id="report-3x-list" class="record-list"></div>
+    </div>
+</section>
+
 <div class="footer-note">
     Sistem Rekapitulasi Pelanggaran • SMP Gelora Bekasi<br>
     <span style="font-weight: bold; color: var(--primary);">Licensed By: Restu Putra Perdana</span>
@@ -1246,6 +1258,7 @@ body.dark-mode .nav-btn.active{color:#60a5fa}
     <button class="nav-btn active" data-page="home" onclick="showPage('home')"><span>🏠</span><span>Beranda</span></button>
     <button class="nav-btn" data-page="data" onclick="showPage('data')"><span>☷</span><span>Data</span></button>
     <button class="nav-btn" data-page="chart" onclick="showPage('chart')"><span>📊</span><span>Grafik</span></button>
+    <button class="nav-btn" data-page="report" onclick="showPage('report')"><span>🚨</span><span>Report 3x</span></button>
     <button class="nav-btn" data-page="form" onclick="openForm()"><span>➕</span><span>Tambah</span></button>
 </nav>
 </div>
@@ -1352,6 +1365,9 @@ body.dark-mode .nav-btn.active{color:#60a5fa}
             <button id="drawer-audit-log" class="drawer-item" style="display: none;" onclick="closeMenu(); openLogModal();">
                 <span>📜</span> Log Aktivitas
             </button>
+            <button class="drawer-item" onclick="closeMenu(); showPage('report');">
+                <span>🚨</span> Report Pelanggaran 3x
+            </button>
             <button class="drawer-item" onclick="closeMenu(); toggleTheme();">
                 <span>🌓</span> Ganti Mode Tampilan
             </button>
@@ -1392,6 +1408,9 @@ try {
 let records = [];
 let usersList = [];
 let myChart = null;
+let followUpMap = {};
+try { followUpMap = JSON.parse(localStorage.getItem('smpgelora_tindak_lanjut') || '{}') || {}; } catch(e) { followUpMap = {}; }
+let followUpCloudReady = false;
 
 // Variabel Pagination
 let currentPage = 1;
@@ -1444,6 +1463,7 @@ function showPage(page){
 
     if(page === 'chart') updateChart(records);
     if(page === 'data') filterData();
+    if(page === 'report') renderThreeStrikeReport();
 }
 
 function openForm(){
@@ -2064,7 +2084,6 @@ if(parts.length === 3){
         return categories;
     }
 
-
     // ==========================================
     // PROSES SEMUA DATA PELANGGARAN
     // ==========================================
@@ -2105,14 +2124,12 @@ if(parts.length === 3){
         }
     });
 
-
     // ==========================================
     // URUTKAN DARI TERBANYAK
     // ==========================================
     return Object.entries(groups)
         .sort((a,b) => b[1] - a[1]);
 }
-
 
 function updateChart(data = records) {
     const canvas = document.getElementById('pelanggaranChart');
@@ -2356,6 +2373,304 @@ function updateChart(data = records) {
 
     });
 }
+function getStudentKey(nama, kelas){
+    return `${normalizeName(nama)}__${normalizeName(kelas)}`;
+}
+
+function getThreeStrikeStudents(){
+    const groups = {};
+
+    records.forEach(item => {
+        const nama = String(item.nama || '').trim();
+        const kelas = String(item.kelas || '').trim();
+        if(!nama) return;
+
+        // Report 3x dikelompokkan berdasarkan NAMA siswa.
+        // Perbedaan penulisan kelas tidak lagi memecah hitungan pelanggaran.
+        const key = normalizeName(nama);
+
+        if(!groups[key]){
+            groups[key] = {
+                nama,
+                kelas: kelas || '-',
+                kelasList: [],
+                records: []
+            };
+        }
+
+        groups[key].records.push(item);
+        if(kelas && !groups[key].kelasList.some(k => normalizeName(k) === normalizeName(kelas))){
+            groups[key].kelasList.push(kelas);
+        }
+    });
+
+    return Object.values(groups)
+        .map(g => {
+            // Tampilkan kelas dari pelanggaran terbaru.
+            const latest = [...g.records].sort((a,b) =>
+                String(b.tanggal||'').localeCompare(String(a.tanggal||'')) ||
+                Number(b.id||0) - Number(a.id||0)
+            )[0];
+            g.kelas = String(latest?.kelas || g.kelas || '-').trim() || '-';
+            return g;
+        })
+        .filter(g => g.records.length >= 3)
+        .sort((a,b) =>
+            b.records.length - a.records.length ||
+            a.nama.localeCompare(b.nama, 'id')
+        );
+}
+
+function getThreeStrikeFollowUp(g){
+    // Cari tindak lanjut lama pada kombinasi nama+kelas yang pernah tersimpan.
+    const candidates = [];
+    const kelasCandidates = [...new Set([
+        g.kelas,
+        ...(g.kelasList || []),
+        ...g.records.map(r => String(r.kelas || '').trim()).filter(Boolean)
+    ])];
+
+    for(const kelas of kelasCandidates){
+        const key = getStudentKey(g.nama, kelas);
+        const value = followUpMap[key];
+        if(value && typeof value === 'object'){
+            candidates.push({key, value});
+        }
+    }
+
+    candidates.sort((a,b) =>
+        String(b.value.updated_at || '').localeCompare(String(a.value.updated_at || ''))
+    );
+
+    const key = candidates[0]?.key || getStudentKey(g.nama, g.kelas);
+    return {key, follow:getFollowUp(key)};
+}
+
+function getFollowUp(key){
+    const value = followUpMap[key];
+    if(!value || typeof value !== 'object') {
+        return {status:'Belum Ditindak', tanggal:'', oleh:'', catatan:'', updated_at:''};
+    }
+    return {
+        status: value.status || 'Belum Ditindak',
+        tanggal: value.tanggal || '',
+        oleh: value.oleh || '',
+        catatan: value.catatan || '',
+        updated_at: value.updated_at || ''
+    };
+}
+
+async function loadFollowUpsFromSupabase(){
+    try{
+        const { data, error } = await _supabase.from('tindak_lanjut').select('*');
+        if(error){
+            followUpCloudReady = false;
+            console.warn('Tabel tindak_lanjut belum siap / tidak dapat diakses:', error.message);
+            return;
+        }
+
+        followUpCloudReady = true;
+        const cloudMap = {};
+        (data || []).forEach(row => {
+            if(row.student_key){
+                cloudMap[row.student_key] = {
+                    status: row.status || 'Belum Ditindak',
+                    tanggal: row.tanggal || '',
+                    oleh: row.oleh || '',
+                    catatan: row.catatan || '',
+                    updated_at: row.updated_at || ''
+                };
+            }
+        });
+
+        // Hardening P1:
+        // - Jangan menimpa data lokal secara buta.
+        // - Jika kedua sisi punya data, pilih versi dengan updated_at terbaru.
+        // - Data lokal lama tanpa timestamp tetap dipertahankan dan dimigrasikan.
+        const merged = {...followUpMap};
+        const localOnly = [];
+
+        Object.entries(followUpMap).forEach(([key, localValue]) => {
+            if(!cloudMap[key]){
+                localOnly.push([key, localValue]);
+                return;
+            }
+
+            const localTime = Date.parse(localValue?.updated_at || '') || 0;
+            const cloudTime = Date.parse(cloudMap[key]?.updated_at || '') || 0;
+
+            if(cloudTime > localTime){
+                merged[key] = cloudMap[key];
+            }else{
+                // Lokal sama/lebih baru: pertahankan lokal.
+                merged[key] = localValue;
+            }
+        });
+
+        Object.entries(cloudMap).forEach(([key, cloudValue]) => {
+            if(!merged[key]) merged[key] = cloudValue;
+        });
+
+        followUpMap = merged;
+        localStorage.setItem('smpgelora_tindak_lanjut', JSON.stringify(followUpMap));
+
+        // Sinkronkan data lokal yang belum ada atau lebih baru ke Supabase.
+        const syncPayloads = [];
+
+        localOnly.forEach(([key, value]) => {
+            syncPayloads.push({
+                student_key:key,
+                nama:key.split('__')[0] || '-',
+                kelas:key.split('__')[1] || '-',
+                status:value.status || 'Belum Ditindak',
+                tanggal:value.tanggal || null,
+                oleh:value.oleh || null,
+                catatan:value.catatan || null,
+                updated_at:value.updated_at || new Date().toISOString()
+            });
+        });
+
+        Object.entries(followUpMap).forEach(([key, value]) => {
+            const cloud = cloudMap[key];
+            const localTime = Date.parse(value?.updated_at || '') || 0;
+            const cloudTime = Date.parse(cloud?.updated_at || '') || 0;
+            if(cloud && localTime > cloudTime){
+                syncPayloads.push({
+                    student_key:key,
+                    nama:key.split('__')[0] || '-',
+                    kelas:key.split('__')[1] || '-',
+                    status:value.status || 'Belum Ditindak',
+                    tanggal:value.tanggal || null,
+                    oleh:value.oleh || null,
+                    catatan:value.catatan || null,
+                    updated_at:value.updated_at || new Date().toISOString()
+                });
+            }
+        });
+
+        if(syncPayloads.length){
+            const {error: syncError} = await _supabase
+                .from('tindak_lanjut')
+                .upsert(syncPayloads, {onConflict:'student_key'});
+            if(syncError){
+                console.warn('Sinkronisasi tindak lanjut gagal:', syncError.message);
+            }
+        }
+    }catch(err){
+        followUpCloudReady = false;
+        console.warn('Gagal memuat tindak lanjut dari Supabase:', err);
+    }
+}
+
+async function saveFollowUp(key, data, nama='', kelas=''){
+    // Hardening P1: setiap perubahan mendapat timestamp agar konflik lokal/cloud
+    // dapat diselesaikan deterministik.
+    const normalized = {
+        status: data.status || 'Belum Ditindak',
+        tanggal: data.tanggal || '',
+        oleh: data.oleh || '',
+        catatan: data.catatan || '',
+        updated_at: new Date().toISOString()
+    };
+
+    followUpMap[key] = normalized;
+    localStorage.setItem('smpgelora_tindak_lanjut', JSON.stringify(followUpMap));
+
+    try{
+        const payload = {
+            student_key: key,
+            nama: nama || key.split('__')[0] || '-',
+            kelas: kelas || key.split('__')[1] || '-',
+            status: normalized.status,
+            tanggal: normalized.tanggal || null,
+            oleh: normalized.oleh || null,
+            catatan: normalized.catatan || null,
+            updated_at: normalized.updated_at
+        };
+        const { error } = await _supabase.from('tindak_lanjut').upsert([payload], {onConflict:'student_key'});
+        if(error) throw error;
+        followUpCloudReady = true;
+        return true;
+    }catch(err){
+        followUpCloudReady = false;
+        console.warn('Status tersimpan lokal, tetapi gagal disinkronkan ke Supabase:', err.message || err);
+        return false;
+    }
+}
+
+function statusBadgeHtml(status){
+    const map = {
+        'Belum Ditindak': ['#e53935','🔴'],
+        'Sudah Ditindak Wali Kelas': ['#f59e0b','🟠'],
+        'Sudah Ditindak BK': ['#7c3aed','🟣'],
+        'Dilaporkan ke Tim Inti 1': ['#2563eb','🔵'],
+        'Selesai / Sudah Ditangani': ['#21a366','🟢']
+    };
+    const [bg, icon] = map[status] || map['Belum Ditindak'];
+    return `<span class="badge" style="background:${bg};display:inline-block">${icon} ${escapeHtml(status)}</span>`;
+}
+
+async function updateFollowUp(nama, kelas){
+    if(!currentUser){
+        return Swal.fire({ icon:'warning', title:'Akses Admin', text:'Login terlebih dahulu untuk memperbarui status tindak lanjut.', confirmButtonColor:'#1261a0' });
+    }
+    const key = getStudentKey(nama, kelas);
+    const current = getFollowUp(key);
+    const { value: formValues } = await Swal.fire({
+        title: `Tindak Lanjut — ${escapeHtml(nama)}`,
+        html: `
+            <div style="text-align:left">\n                <label style="font-weight:700;font-size:12px;display:block;margin-bottom:5px">Status</label>\n                <select id="swal-follow-status" class="swal2-input" style="width:100%;margin:0 0 10px">\n                    <option ${current.status==='Belum Ditindak'?'selected':''}>Belum Ditindak</option>\n                    <option ${current.status==='Sudah Ditindak Wali Kelas'?'selected':''}>Sudah Ditindak Wali Kelas</option>\n                    <option ${current.status==='Sudah Ditindak BK'?'selected':''}>Sudah Ditindak BK</option>\n                    <option ${current.status==='Dilaporkan ke Tim Inti 1'?'selected':''}>Dilaporkan ke Tim Inti 1</option>\n                    <option ${current.status==='Selesai / Sudah Ditangani'?'selected':''}>Selesai / Sudah Ditangani</option>\n                </select>\n                <label style="font-weight:700;font-size:12px;display:block;margin-bottom:5px">Tanggal Tindakan</label>\n                <input id="swal-follow-date" type="date" class="swal2-input" value="${escapeAttr(current.tanggal || getLocalDateISO())}" style="width:100%;margin:0 0 10px">\n                <label style="font-weight:700;font-size:12px;display:block;margin-bottom:5px">Ditindak oleh</label>\n                <input id="swal-follow-by" class="swal2-input" value="${escapeAttr(current.oleh || currentUser.nama || '')}" placeholder="Nama guru/petugas" style="width:100%;margin:0 0 10px">\n                <label style="font-weight:700;font-size:12px;display:block;margin-bottom:5px">Catatan</label>\n                <textarea id="swal-follow-note" class="swal2-textarea" placeholder="Catatan tindak lanjut" style="width:100%;margin:0">${escapeHtml(current.catatan || '')}</textarea>\n            </div>`,
+        showCancelButton:true,
+        confirmButtonText:'💾 Simpan Status',
+        cancelButtonText:'Batal',
+        confirmButtonColor:'#21a366',
+        preConfirm:() => ({
+            status: document.getElementById('swal-follow-status').value,
+            tanggal: document.getElementById('swal-follow-date').value,
+            oleh: document.getElementById('swal-follow-by').value.trim(),
+            catatan: document.getElementById('swal-follow-note').value.trim()
+        })
+    });
+    if(formValues){
+        const synced = await saveFollowUp(key, formValues, nama, kelas);
+        await catatLog('TINDAK_LANJUT', `Memperbarui tindak lanjut ${nama} (${kelas}): ${formValues.status}${formValues.catatan ? ' - ' + formValues.catatan : ''}`);
+        renderThreeStrikeReport();
+        Swal.fire({icon:'success', title:'Status tersimpan', text:`Status ${nama} diperbarui.${synced ? ' Tersimpan di Supabase.' : ' Tersimpan di perangkat; Supabase belum siap.'}`, timer:1400, showConfirmButton:false});
+    }
+}
+
+function renderThreeStrikeReport(){
+    const box = document.getElementById('report-3x-list');
+    if(!box) return;
+    const keyword = (document.getElementById('report-search')?.value || '').toLowerCase().trim();
+    const students = getThreeStrikeStudents().filter(g =>
+        !keyword || g.nama.toLowerCase().includes(keyword) || g.kelas.toLowerCase().includes(keyword)
+    );
+    if(!students.length){
+        box.innerHTML = '<div class="empty">Belum ada siswa dengan 3x pelanggaran.</div>';
+        return;
+    }
+    box.innerHTML = students.map(g => {
+        const {key, follow} = getThreeStrikeFollowUp(g);
+        const latest = [...g.records].sort((a,b)=>String(b.tanggal||'').localeCompare(String(a.tanggal||''))).slice(0,3);
+        const riwayat = latest.map((r,i)=>`${i+1}. ${escapeHtml(r.pelanggaran||'-')} — ${escapeHtml(formatTanggalIndonesia(r.tanggal)||'-')}`).join('<br>');
+        return `<div class="record" style="grid-template-columns:1fr;">
+            <div class="record-main">
+                <div class="record-name">${escapeHtml(g.nama)}</div>
+                <div class="record-meta">🏫 Kelas ${escapeHtml(g.kelas)} · <strong>${g.records.length}x pelanggaran</strong></div>
+                <div style="margin-top:9px">${statusBadgeHtml(follow.status)}</div>
+                <div style="font-size:11px;color:var(--muted);margin-top:8px;line-height:1.55">${riwayat}</div>
+                ${follow.tanggal || follow.oleh || follow.catatan ? `<div style="margin-top:9px;padding:9px;border-radius:10px;background:var(--bg);font-size:11px;line-height:1.5"><strong>Tindak lanjut:</strong> ${follow.tanggal ? escapeHtml(formatTanggalIndonesia(follow.tanggal)) : '-'}${follow.oleh ? ` · ${escapeHtml(follow.oleh)}` : ''}${follow.catatan ? `<br>${escapeHtml(follow.catatan)}` : ''}</div>` : ''}
+            </div>
+            <div class="actions">
+                <button class="edit-btn" onclick="updateFollowUp('${escapeAttr(g.nama)}','${escapeAttr(g.kelas)}')">📝 Tindak Lanjut</button>
+                <button class="print-btn" onclick="cetakSuratPanggilan('${escapeAttr(g.nama)}','${escapeAttr(g.kelas)}')">🖨️ Cetak</button>
+                <button class="notify-btn" onclick="kirimWhatsAppManual('${escapeAttr(g.nama)}','${escapeAttr(g.kelas)}')">💬 WA Wali</button>
+            </div>
+        </div>`;
+    }).join('');
+}
+
 function renderRecent(){
     const box = document.getElementById('recent-list');
     if(!box)return;
@@ -2516,8 +2831,10 @@ async function loadData(){
     }
     records = data || [];
     filteredRecordsCache = [...records];
+    await loadFollowUpsFromSupabase();
     updateAdminUI();
     updateChart(records);
+    renderThreeStrikeReport();
 }
 
 async function kirimWhatsAppManual(namaSiswa, kelasSiswa) {
@@ -2895,155 +3212,218 @@ async function hapusData(id){
     }
 }
 
-/* FUNGSI EXPORT EXCEL DENGAN FILTER TANGGAL */
-async function exportToExcel(){
-    if(!records.length) return Swal.fire({
-        icon: 'info',
-        title: 'Data Kosong',
-        text: 'Tidak ada data untuk diexport!',
-        confirmButtonColor: '#1261a0'
-    });
+/* EXPORT KHUSUS SISWA YANG SUDAH 3X+ PELANGGARAN */
+async function imageUrlToDataUri(url){
+    if(!url) return null;
+    try{
+        const response = await fetch(url, {mode:'cors'});
+        if(!response.ok) throw new Error(`HTTP ${response.status}`);
+        const blob = await response.blob();
+        return await new Promise((resolve,reject)=>{
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result);
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+        });
+    }catch(err){
+        console.warn('Foto tidak dapat dimasukkan ke Excel:', url, err);
+        return null;
+    }
+}
 
-    const today = getLocalDateISO();
-    const pastDate = getLocalDateISO(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000));
+async function exportThreeStrikeReport(){
+    const students = getThreeStrikeStudents();
 
-    const { value: formValues } = await Swal.fire({
-        title: '📗 Export ke Excel',
-        html: `
-            <div style="text-align: left; font-size: 13px;">
-                <label style="font-weight: bold; display: block; margin-bottom: 4px;">Dari Tanggal:</label>
-                <input id="swal-export-from" type="date" class="swal2-input" value="${pastDate}" style="margin: 0 0 12px 0; width: 100%;">
-                
-                <label style="font-weight: bold; display: block; margin-bottom: 4px;">Sampai Tanggal:</label>
-                <input id="swal-export-to" type="date" class="swal2-input" value="${today}" style="margin: 0 0 12px 0; width: 100%;">
-            </div>
-        `,
-        focusConfirm: false,
-        showCancelButton: true,
-        confirmButtonText: '📥 Export Sekarang',
-        cancelButtonText: 'Batal',
-        confirmButtonColor: '#1677b7',
-        preConfirm: () => {
-            const tglAwal = document.getElementById('swal-export-from').value;
-            const tglAkhir = document.getElementById('swal-export-to').value;
-            if (!tglAwal || !tglAkhir) {
-                Swal.showValidationMessage('Harap isi kedua tanggal!');
-                return false;
-            }
-            if (tglAwal > tglAkhir) {
-                Swal.showValidationMessage('Tanggal awal tidak boleh lebih besar dari tanggal akhir!');
-                return false;
-            }
-            return { tglAwal, tglAkhir };
-        }
-    });
-
-    if (!formValues) return;
-
-    const filteredRecords = records.filter(item => {
-    const tanggal = item.tanggal
-        ? item.tanggal.substring(0, 10)
-        : '';
-
-    return tanggal >= formValues.tglAwal &&
-           tanggal <= formValues.tglAkhir;
-});
-
-    if (!filteredRecords.length) {
+    if(!students.length){
         return Swal.fire({
-            icon: 'warning',
-            title: 'Data Tidak Ditemukan',
-            text: `Tidak ada data pelanggaran dari rentang tanggal ${formValues.tglAwal} s/d ${formValues.tglAkhir}.`,
-            confirmButtonColor: '#1261a0'
+            icon:'info',
+            title:'Report Kosong',
+            text:'Belum ada siswa yang mencapai 3x pelanggaran.',
+            confirmButtonColor:'#1261a0'
         });
     }
 
     Swal.fire({
-        title: 'Mengeksport Data...',
-        text: 'Mohon tunggu sebentar',
-        allowOutsideClick: false,
-        didOpen: () => Swal.showLoading()
+        title:'Mengeksport Report 3x...',
+        html:'Menyiapkan seluruh siswa 3x+ pelanggaran.',
+        allowOutsideClick:false,
+        didOpen:()=>Swal.showLoading()
     });
 
     try{
         const workbook = new ExcelJS.Workbook();
-        const ws = workbook.addWorksheet('Rekap Pelanggaran');
+        const ws = workbook.addWorksheet('Report 3x');
 
-        ws.mergeCells('A1:F1'); ws.mergeCells('A2:F2'); ws.mergeCells('A3:F3'); ws.mergeCells('A4:F4');
-        ws.getCell('A1').value = 'REKAPITULASI PELANGGARAN SISWA/SISWI';
+        ws.mergeCells('A1:J1');
+        ws.mergeCells('A2:J2');
+        ws.mergeCells('A3:J3');
+        ws.getCell('A1').value = 'REPORT SISWA 3X PELANGGARAN';
         ws.getCell('A2').value = 'SMP GELORA BEKASI';
         ws.getCell('A3').value = 'TAHUN AJARAN 2026-2027';
-        ws.getCell('A4').value = `PERIODE: ${formValues.tglAwal} s/d ${formValues.tglAkhir}`;
 
-        ['A1','A2','A3','A4'].forEach((cell,i) => {
-            ws.getCell(cell).font = {name:'Arial', size:i===0?14:i===1?12:10, bold:true, italic: i===3};
-            ws.getCell(cell).alignment = {horizontal:'center', vertical:'middle'};
+        ['A1','A2','A3'].forEach((cell,i)=>{
+            ws.getCell(cell).font = {
+                name:'Arial',
+                size:i===0?14:i===1?12:10,
+                bold:true
+            };
+            ws.getCell(cell).alignment = {
+                horizontal:'center',
+                vertical:'middle'
+            };
         });
 
         ws.addRow([]);
-        const header = ws.addRow(['No','Hari / Tanggal','Nama Siswa','Kelas','Jenis Pelanggaran','Foto']);
-        header.eachCell(cell => {
-            cell.fill = {type:'pattern', pattern:'solid', fgColor:{argb:'2F5597'}};
+
+        const header = ws.addRow([
+            'No','Foto Bukti Terbaru','Nama Siswa','Kelas','Total Pelanggaran',
+            'Status Tindak Lanjut','Tanggal Tindakan','Ditindak Oleh',
+            'Catatan','Riwayat Pelanggaran'
+        ]);
+
+        header.eachCell(cell=>{
+            cell.fill = {
+                type:'pattern',
+                pattern:'solid',
+                fgColor:{argb:'2F5597'}
+            };
             cell.font = {bold:true, color:{argb:'FFFFFF'}};
-            cell.alignment = {horizontal:'center', vertical:'middle'};
-            cell.border = {top:{style:'thin'}, left:{style:'thin'}, bottom:{style:'thin'}, right:{style:'thin'}};
+            cell.alignment = {
+                horizontal:'center',
+                vertical:'middle',
+                wrapText:true
+            };
+            cell.border = {
+                top:{style:'thin'},
+                left:{style:'thin'},
+                bottom:{style:'thin'},
+                right:{style:'thin'}
+            };
         });
 
-        [8,18,28,12,32,20].forEach((w,i) => ws.getColumn(i+1).width = w);
+        [7,16,28,12,18,27,18,24,38,55]
+            .forEach((w,i)=>ws.getColumn(i+1).width=w);
 
-        for(let i=0; i<filteredRecords.length; i++){
-            const item = filteredRecords[i];
+        let no = 0;
+
+        for(const g of students){
+            no++;
+
+            const {key, follow} = getThreeStrikeFollowUp(g);
+
+            const sorted = [...g.records].sort((a,b)=>
+                String(a.tanggal||'').localeCompare(String(b.tanggal||'')) ||
+                Number(a.id||0) - Number(b.id||0)
+            );
+
+            const latestWithPhoto = [...sorted]
+                .reverse()
+                .find(r => r.foto_url) || null;
+
+            const riwayat = sorted
+                .map((r,n)=>
+                    `${n+1}. ${r.pelanggaran||'-'} — ${formatTanggalIndonesia(r.tanggal)||'-'}`
+                )
+                .join('\n');
+
             const row = ws.addRow([
-                i+1, formatTanggalIndonesia(item.tanggal)||'-', item.nama||'-', item.kelas||'-',
-                item.pelanggaran||'-', ''
+                no,
+                '',
+                g.nama || '-',
+                g.kelas || '-',
+                g.records.length,
+                follow.status || 'Belum Ditindak',
+                follow.tanggal ? formatTanggalIndonesia(follow.tanggal) : '-',
+                follow.oleh || '-',
+                follow.catatan || '-',
+                riwayat || '-'
             ]);
-            row.height = 65;
-            row.eachCell({includeEmpty:true}, cell => {
-                cell.alignment = {vertical:'middle', horizontal:'center', wrapText:true};
-                cell.border = {top:{style:'thin'}, left:{style:'thin'}, bottom:{style:'thin'}, right:{style:'thin'}};
+
+            row.height = Math.max(
+                70,
+                Math.min(180, 18 * Math.max(3, riwayat.split('\n').length))
+            );
+
+            row.eachCell({includeEmpty:true},cell=>{
+                cell.alignment = {
+                    vertical:'top',
+                    horizontal:'left',
+                    wrapText:true
+                };
+                cell.border = {
+                    top:{style:'thin'},
+                    left:{style:'thin'},
+                    bottom:{style:'thin'},
+                    right:{style:'thin'}
+                };
             });
 
-            if(item.foto_url){
-                try{
-                    const response = await fetch(item.foto_url);
-                    const arrayBuffer = await response.arrayBuffer();
-                    const imageId = workbook.addImage({buffer:arrayBuffer, extension:'jpeg'});
-                    ws.addImage(imageId, {
-                        tl: {col:5.2, row:row.number-.9},
-                        ext: {width:60, height:60},
-                        editAs: 'oneCell'
+            [1,4,5,6].forEach(c=>{
+                row.getCell(c).alignment = {
+                    vertical:'top',
+                    horizontal:'center',
+                    wrapText:true
+                };
+            });
+
+            if(latestWithPhoto){
+                const dataUri = await imageUrlToDataUri(latestWithPhoto.foto_url);
+
+                if(dataUri){
+                    const ext = dataUri.startsWith('data:image/png')
+                        ? 'png'
+                        : 'jpeg';
+
+                    const imageId = workbook.addImage({
+                        base64:dataUri,
+                        extension:ext
                     });
-                }catch(e){console.warn('Foto gagal dimasukkan:', e)}
+
+                    ws.addImage(imageId,{
+                        tl:{col:1.15,row:row.number-0.85},
+                        ext:{width:95,height:75}
+                    });
+                }else{
+                    row.getCell(2).value = 'Foto gagal dimuat';
+                }
+            }else{
+                row.getCell(2).value = 'Tidak ada foto';
             }
         }
 
         const buffer = await workbook.xlsx.writeBuffer();
-        const blob = new Blob([buffer], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+        const blob = new Blob([buffer],{
+            type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        });
+
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
-        link.download = `Rekap_Pelanggaran_${formValues.tglAwal}_sd_${formValues.tglAkhir}.xlsx`;
+        link.download = `Report_3x_Pelanggaran_SMP_Gelora_${getLocalDateISO()}.xlsx`;
+        document.body.appendChild(link);
         link.click();
-        URL.revokeObjectURL(url);
+        link.remove();
+
+        setTimeout(()=>URL.revokeObjectURL(url),1000);
 
         Swal.fire({
-            icon: 'success',
-            title: 'Berhasil Export',
-            text: 'File rekap Excel berhasil diunduh.',
-            confirmButtonColor: '#21a366'
+            icon:'success',
+            title:'Berhasil Export',
+            text:`${students.length} siswa dengan 3x atau lebih pelanggaran berhasil dimasukkan ke Excel.`,
+            confirmButtonColor:'#21a366'
         });
+
     }catch(err){
         console.error(err);
         Swal.fire({
-            icon: 'error',
-            title: 'Export Gagal',
-            text: 'Terjadi kesalahan saat export: '+err.message,
-            confirmButtonColor: '#e53935'
+            icon:'error',
+            title:'Export Gagal',
+            text:'Terjadi kesalahan saat export: '+err.message,
+            confirmButtonColor:'#e53935'
         });
     }
 }
 
-/* KONTROL MUSIK LATAR */
 function toggleAudio(){
     const audio = document.getElementById('bg-music');
     const text = document.getElementById('music-text');
@@ -3102,7 +3482,6 @@ function formatTanggalIndonesia(tanggal) {
 
     return `${parseInt(hari)} ${namaBulan[parseInt(bulan) - 1]} ${tahun}`;
 }
-
 
 function openPhotoLightbox(url){
     if(!url) return;
