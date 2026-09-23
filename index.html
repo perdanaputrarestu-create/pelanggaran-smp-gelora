@@ -3676,6 +3676,13 @@ async function addNativeExcelCharts(xlsxBuffer, chartConfigs){
             : `<c:invertIfNegative val="0"/>`;
         const axes = isPie ? '' : `<c:catAx><c:axId val="-201"/><c:scaling><c:orientation val="minMax"/></c:scaling><c:delete val="0"/><c:axPos val="b"/><c:tickLblPos val="nextTo"/><c:crossAx val="-202"/><c:crosses val="autoZero"/><c:auto val="1"/><c:lblAlgn val="ctr"/><c:lblOffset val="100"/></c:catAx><c:valAx><c:axId val="-202"/><c:scaling><c:orientation val="minMax"/></c:scaling><c:delete val="0"/><c:axPos val="l"/><c:majorGridlines/><c:numFmt formatCode="0" sourceLinked="1"/><c:majorTickMark val="none"/><c:minorTickMark val="none"/><c:tickLblPos val="nextTo"/><c:crossAx val="-201"/><c:crosses val="autoZero"/><c:crossBetween val="midCat"/></c:valAx>`;
 
+        // Excel desktop mengharapkan kedua axis ID berada DI DALAM chart type
+        // (barChart/lineChart), bukan hanya di plotArea. WPS lebih toleran,
+        // sehingga file lama bisa terlihat normal di WPS tetapi tidak di Excel.
+        const chartAxisIds = isPie
+            ? ''
+            : '<c:axId val="-201"/><c:axId val="-202"/>';
+
         const chartXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <c:chartSpace xmlns:c="http://schemas.openxmlformats.org/drawingml/2006/chart" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
 <c:date1904 val="0"/><c:lang val="id-ID"/><c:roundedCorners val="0"/><c:chart><c:autoTitleDeleted val="0"/>
@@ -3684,7 +3691,7 @@ async function addNativeExcelCharts(xlsxBuffer, chartConfigs){
 <c:ser><c:idx val="0"/><c:order val="0"/><c:tx><c:strRef><c:f>'Rekap Pelanggaran'!$${valCol}$1</c:f><c:strCache><c:ptCount val="1"/><c:pt idx="0"><c:v>${esc(seriesLabel)}</c:v></c:pt></c:strCache></c:strRef></c:tx>
 <c:cat><c:strRef><c:f>${catFormula}</c:f><c:strCache><c:ptCount val="${labels.length}"/>${catPts}</c:strCache></c:strRef></c:cat>
 <c:val><c:numRef><c:f>${valFormula}</c:f><c:numCache><c:formatCode>0</c:formatCode><c:ptCount val="${values.length}"/>${numPts}</c:numCache></c:numRef></c:val>
-${extra}</c:ser>${endChart}${axes}</c:plotArea>${isPie ? '<c:legend><c:legendPos val="b"/><c:layout/><c:overlay val="0"/></c:legend>' : ''}<c:plotVisOnly val="0"/><c:dispBlanksAs val="gap"/><c:showDLblsOverMax val="0"/></c:chart></c:chartSpace>`;
+${extra}</c:ser>${chartAxisIds}${endChart}${axes}</c:plotArea>${isPie ? '<c:legend><c:legendPos val="b"/><c:layout/><c:overlay val="0"/></c:legend>' : ''}<c:plotVisOnly val="0"/><c:dispBlanksAs val="gap"/><c:showDLblsOverMax val="0"/></c:chart></c:chartSpace>`;
         zip.file(chartPath, chartXml);
 
         const rid = 'rId' + nextRidNum++;
