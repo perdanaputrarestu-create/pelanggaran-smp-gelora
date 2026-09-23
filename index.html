@@ -951,6 +951,32 @@ body.dark-mode .nav-btn.active{color:#60a5fa}
         animation:mobileSheet .22s ease-out;
     }
 
+    /* Login tetap modal di tengah pada mobile */
+    #login-modal{
+        align-items:center;
+        justify-content:center;
+        padding:18px;
+    }
+
+    #login-modal .modal-box{
+        width:min(440px,100%);
+        max-height:90vh;
+        border-radius:24px;
+        box-shadow:0 15px 45px rgba(0,0,0,.25);
+        animation:loginCenterModal .22s ease-out;
+    }
+
+    @keyframes loginCenterModal{
+        from{
+            transform:translateY(12px) scale(.98);
+            opacity:0;
+        }
+        to{
+            transform:translateY(0) scale(1);
+            opacity:1;
+        }
+    }
+
     @keyframes mobileSheet{
         from{
             transform:translateY(30px);
@@ -1184,7 +1210,7 @@ body.dark-mode .nav-btn.active{color:#60a5fa}
     <div class="stats">
         <div class="stat"><div class="stat-icon">📋</div><div class="stat-label">Total Kasus</div><div class="stat-value" id="stat-total">...</div></div>
         <div class="stat"><div class="stat-icon">⚠️</div><div class="stat-label">Jenis Pelanggaran</div><div class="stat-value" id="stat-types">...</div></div>
-        <div class="stat"><div class="stat-icon">👨‍🎓</div><div class="stat-label">Jumlah Siswa</div><div class="stat-value" id="stat-students">...</div></div>
+        <div class="stat"><div class="stat-icon">✅</div><div class="stat-label">Sudah Ditindak</div><div class="stat-value" id="stat-acted">...</div></div>
         <div class="stat"><div class="stat-icon">📅</div><div class="stat-label">Tahun Ajaran</div><div class="stat-value" style="font-size:16px">2026-2027</div></div>
     </div>
 
@@ -1856,10 +1882,13 @@ function updateStats(){
     );
     document.getElementById('stat-types').textContent = types.size;
 
-    const students = new Set(
-        records.map(x => (x.nama||'').trim().toLowerCase()).filter(Boolean)
-    );
-    document.getElementById('stat-students').textContent = students.size;
+    // Hitung siswa yang sudah ditindak berdasarkan status tindak lanjut
+    // pada Report 3x. Hanya status selain "Belum Ditindak" yang dihitung.
+    const actedStudents = getThreeStrikeStudents().filter(g => {
+        const follow = getThreeStrikeFollowUp(g).follow;
+        return follow.status && follow.status !== 'Belum Ditindak';
+    });
+    document.getElementById('stat-acted').textContent = actedStudents.length;
 }
 
 function getGroups(data, filterType){
