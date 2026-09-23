@@ -2046,130 +2046,122 @@ if(parts.length === 3){
      */
     function detectViolationCategories(text){
 
+        const t = String(text || '')
+            .toLowerCase()
+            .replace(/[.,;:\/\\|+&]/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim();
+
+        // Satu catatan BOLEH memiliki lebih dari satu kategori.
+        // Contoh: "Terlambat 4 menit dan Atribut tidak lengkap"
+        // => ['Terlambat', 'Atribut/Seragam'].
+        // Hanya keyword yang cukup spesifik yang dipakai agar grafik
+        // tidak membuat kategori secara ngawur.
         const categories = [];
 
-        const t = text
-            .toLowerCase()
-            .replace(/[.,;:\/\\|+&]/g, ' ');
-
-        // --------------------------------------
         // TERLAMBAT
-        // --------------------------------------
         if(
             /\btelat\b/.test(t) ||
             /\bterlambat\b/.test(t) ||
             /\bketerlambatan\b/.test(t) ||
-            t.includes('datang terlambat') ||
-            t.includes('datang telat')
+            /\bdatang\s+(terlambat|telat)\b/.test(t)
         ){
             categories.push('Terlambat');
         }
 
-        // --------------------------------------
         // MEROKOK
-        // --------------------------------------
         if(
             /\brokok\b/.test(t) ||
-            /\bmerokok\b/.test(t) ||
-            t.includes('ketahuan merokok')
+            /\bmerokok\b/.test(t)
         ){
             categories.push('Merokok');
         }
 
-        // --------------------------------------
         // ATRIBUT / SERAGAM
-        // --------------------------------------
         if(
-            t.includes('baju') ||
-            t.includes('seragam') ||
-            t.includes('atribut') ||
-            t.includes('pakaian') ||
-            t.includes('tidak lengkap') ||
-            t.includes('kelengkapan') ||
-            t.includes('kaos kaki') ||
-            t.includes('sabuk') ||
-            t.includes('ikat pinggang') ||
-            t.includes('topi') ||
-            t.includes('dasi') ||
-            t.includes('sepatu') ||
-            t.includes('hijab') ||
-            t.includes('jilbab') ||
-            t.includes('bergo')
+            /\batribut\b/.test(t) ||
+            /\bseragam\b/.test(t) ||
+            /\bbaju\b/.test(t) ||
+            /\bpakaian\b/.test(t) ||
+            /\bkaos\s+kaki\b/.test(t) ||
+            /\bsabuk\b/.test(t) ||
+            /\bikat\s+pinggang\b/.test(t) ||
+            /\btopi\b/.test(t) ||
+            /\bdasi\b/.test(t) ||
+            /\bsepatu\b/.test(t) ||
+            /\bhijab\b/.test(t) ||
+            /\bjilbab\b/.test(t) ||
+            /\bbergo\b/.test(t)
         ){
             categories.push('Atribut/Seragam');
         }
 
-        // --------------------------------------
         // RAMBUT
-        // --------------------------------------
         if(
-            t.includes('rambut') ||
-            t.includes('gondrong') ||
-            t.includes('model rambut') ||
-            t.includes('potongan rambut')
+            /\brambut\b/.test(t) ||
+            /\bgondrong\b/.test(t) ||
+            /\bmodel\s+rambut\b/.test(t) ||
+            /\bpotongan\s+rambut\b/.test(t)
         ){
             categories.push('Rambut');
         }
 
-        // --------------------------------------
         // BOLOS / TIDAK HADIR
-        // --------------------------------------
         if(
-            t.includes('bolos') ||
-            t.includes('membolos') ||
-            t.includes('tidak masuk') ||
-            t.includes('tidak hadir') ||
+            /\bbolos\b/.test(t) ||
+            /\bmembolos\b/.test(t) ||
+            /\btidak\s+masuk\b/.test(t) ||
+            /\btidak\s+hadir\b/.test(t) ||
             /\balpa\b/.test(t) ||
-            t.includes('tanpa keterangan') ||
-            t.includes('kabur')
+            /\btanpa\s+keterangan\b/.test(t) ||
+            /\bkabur\b/.test(t)
         ){
             categories.push('Bolos/Tidak Hadir');
         }
 
-        // --------------------------------------
         // HP / HANDPHONE
-        // --------------------------------------
         if(
             /\bhp\b/.test(t) ||
-            t.includes('handphone') ||
-            t.includes('hand phone') ||
-            t.includes('ponsel') ||
-            t.includes('smartphone') ||
-            t.includes('main hp') ||
-            t.includes('bermain hp')
+            /\bhandphone\b/.test(t) ||
+            /\bhand\s*phone\b/.test(t) ||
+            /\bponsel\b/.test(t) ||
+            /\bsmartphone\b/.test(t)
         ){
             categories.push('HP/Handphone');
         }
 
-        // --------------------------------------
         // BERKELAHI / KEKERASAN
-        // --------------------------------------
         if(
-            t.includes('berkelahi') ||
-            t.includes('berantem') ||
-            t.includes('tawuran') ||
-            t.includes('memukul') ||
-            t.includes('pukul') ||
-            t.includes('kekerasan') ||
-            t.includes('perkelahian')
+            /\bberkelahi\b/.test(t) ||
+            /\bberantem\b/.test(t) ||
+            /\btawuran\b/.test(t) ||
+            /\bmemukul\b/.test(t) ||
+            /\bdipukul\b/.test(t) ||
+            /\bpukulan\b/.test(t) ||
+            /\bpukul\b/.test(t) ||
+            /\bkekerasan\b/.test(t) ||
+            /\bperkelahian\b/.test(t)
         ){
             categories.push('Berkelahi/Kekerasan');
         }
 
-        // --------------------------------------
         // KETERTIBAN / PERILAKU
-        // --------------------------------------
+        // Keyword umum seperti "mengganggu", "ketertiban", dan
+        // "perilaku" sengaja tidak dipakai sendirian.
         if(
-            t.includes('gaduh') ||
-            t.includes('ribut') ||
-            t.includes('mengganggu') ||
-            t.includes('tidak tertib') ||
-            t.includes('tidak sopan') ||
-            t.includes('ketertiban') ||
-            t.includes('perilaku') ||
-            t.includes('mengganggu teman')
+            /\bgaduh\b/.test(t) ||
+            /\bribut\b/.test(t) ||
+            /\btidak\s+tertib\b/.test(t) ||
+            /\btidak\s+sopan\b/.test(t) ||
+            /\bmengganggu\s+teman\b/.test(t)
         ){
             categories.push('Ketertiban/Perilaku');
+        }
+
+        // Jika benar-benar tidak cocok dengan kategori yang jelas,
+        // baru masuk Lainnya.
+        if(categories.length === 0){
+            categories.push('Lainnya');
         }
 
         return categories;
@@ -2186,33 +2178,11 @@ if(parts.length === 3){
 
         if(!raw) return;
 
-        const detected =
-            detectViolationCategories(raw);
+        const detected = detectViolationCategories(raw);
 
-        // Jika ditemukan satu atau lebih kategori
-        if(detected.length > 0){
-
-            detected.forEach(category => {
-
-                groups[category] =
-                    (groups[category] || 0) + 1;
-
-            });
-
-        }
-
-        // Jika tidak dikenali kategori mana pun
-        else{
-
-            const formatted =
-                raw.replace(
-                    /\b\w/g,
-                    c => c.toUpperCase()
-                );
-
-            groups[formatted] =
-                (groups[formatted] || 0) + 1;
-        }
+        detected.forEach(category => {
+            groups[category] = (groups[category] || 0) + 1;
+        });
     });
 
     // ==========================================
