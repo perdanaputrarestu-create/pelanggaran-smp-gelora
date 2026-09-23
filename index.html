@@ -7,6 +7,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
@@ -60,6 +61,41 @@ body{
     color:var(--text);
     transition: background 0.3s, color 0.3s;
 }
+
+/* Loading screen saat refresh / pengambilan data */
+#app-loading{
+    position:fixed;
+    inset:0;
+    z-index:99999;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    flex-direction:column;
+    gap:14px;
+    background:var(--bg);
+    color:var(--text);
+    transition:opacity .22s ease, visibility .22s ease;
+}
+#app-loading.hidden{
+    opacity:0;
+    visibility:hidden;
+    pointer-events:none;
+}
+.app-loading-spinner{
+    width:46px;
+    height:46px;
+    border:4px solid rgba(18,97,160,.16);
+    border-top-color:var(--primary);
+    border-radius:50%;
+    animation:smpGeloraSpin .8s linear infinite;
+}
+.app-loading-text{
+    font-size:13px;
+    font-weight:800;
+    color:var(--muted);
+}
+@keyframes smpGeloraSpin{to{transform:rotate(360deg)}}
+body.dark-mode #app-loading{background:var(--bg);}
 button,input,select{font:inherit}
 button{cursor:pointer}
 .app{
@@ -1105,6 +1141,10 @@ body.dark-mode .nav-btn.active{color:#60a5fa}
 </head>
 
 <body>
+<div id="app-loading" aria-live="polite" aria-busy="true">
+    <div class="app-loading-spinner"></div>
+    <div class="app-loading-text">Sedang memuat data...</div>
+</div>
 
 <div id="photo-lightbox" class="photo-lightbox" aria-hidden="true" onclick="closePhotoLightbox(event)">
     <button type="button" class="photo-lightbox-close" aria-label="Tutup" onclick="closePhotoLightbox(event)">×</button>
@@ -1142,9 +1182,9 @@ body.dark-mode .nav-btn.active{color:#60a5fa}
     </div>
 
     <div class="stats">
-        <div class="stat"><div class="stat-icon">📋</div><div class="stat-label">Total Kasus</div><div class="stat-value" id="stat-total">0</div></div>
-        <div class="stat"><div class="stat-icon">⚠️</div><div class="stat-label">Jenis Pelanggaran</div><div class="stat-value" id="stat-types">0</div></div>
-        <div class="stat"><div class="stat-icon">👨‍🎓</div><div class="stat-label">Jumlah Siswa</div><div class="stat-value" id="stat-students">0</div></div>
+        <div class="stat"><div class="stat-icon">📋</div><div class="stat-label">Total Kasus</div><div class="stat-value" id="stat-total">...</div></div>
+        <div class="stat"><div class="stat-icon">⚠️</div><div class="stat-label">Jenis Pelanggaran</div><div class="stat-value" id="stat-types">...</div></div>
+        <div class="stat"><div class="stat-icon">👨‍🎓</div><div class="stat-label">Jumlah Siswa</div><div class="stat-value" id="stat-students">...</div></div>
         <div class="stat"><div class="stat-icon">📅</div><div class="stat-label">Tahun Ajaran</div><div class="stat-value" style="font-size:16px">2026-2027</div></div>
     </div>
 
@@ -1411,6 +1451,27 @@ let myChart = null;
 let followUpMap = {};
 try { followUpMap = JSON.parse(localStorage.getItem('smpgelora_tindak_lanjut') || '{}') || {}; } catch(e) { followUpMap = {}; }
 let followUpCloudReady = false;
+let appDataLoaded = false;
+
+function showAppLoading(message = 'Sedang memuat data...'){
+    const loader = document.getElementById('app-loading');
+    const text = loader ? loader.querySelector('.app-loading-text') : null;
+    if(text) text.textContent = message;
+    if(loader){
+        loader.classList.remove('hidden');
+        loader.setAttribute('aria-busy','true');
+    }
+}
+
+function hideAppLoading(){
+    const loader = document.getElementById('app-loading');
+    if(!loader) return;
+    loader.setAttribute('aria-busy','false');
+    loader.classList.add('hidden');
+    window.setTimeout(() => {
+        if(loader.classList.contains('hidden')) loader.style.display = 'none';
+    }, 260);
+}
 
 // Variabel Pagination
 let currentPage = 1;
@@ -1451,6 +1512,7 @@ function showAbout() {
 }
 
 function showPage(page){
+    localStorage.setItem('smpgelora_current_page', page);
     document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
     const target = document.getElementById('page-' + page);
     if(target) target.classList.add('active');
@@ -2814,27 +2876,34 @@ function compressImage(file, maxWidth=800, quality=.7){
 }
 
 async function loadData(){
-    const { data, error } = await _supabase
-        .from('pelanggaran')
-        .select('*')
-        .order('id', {ascending: true});
+    showAppLoading('Sedang memuat data pelanggaran...');
+    try {
+        const { data, error } = await _supabase
+            .from('pelanggaran')
+            .select('*')
+            .order('id', {ascending: true});
 
-    if(error){
-        console.error("Supabase error:", error);
+        if(error) throw error;
+
+        records = data || [];
+        filteredRecordsCache = [...records];
+        await loadFollowUpsFromSupabase();
+        updateAdminUI();
+        updateChart(records);
+        renderThreeStrikeReport();
+        appDataLoaded = true;
+    } catch(error){
+        console.error('Supabase error:', error);
+        appDataLoaded = false;
         Swal.fire({
             icon: 'error',
             title: 'Koneksi Gagal',
-            text: 'Gagal mengambil data dari Supabase: ' + error.message,
+            text: 'Gagal mengambil data dari Supabase: ' + (error?.message || error),
             confirmButtonColor: '#e53935'
         });
-        return;
+    } finally {
+        hideAppLoading();
     }
-    records = data || [];
-    filteredRecordsCache = [...records];
-    await loadFollowUpsFromSupabase();
-    updateAdminUI();
-    updateChart(records);
-    renderThreeStrikeReport();
 }
 
 async function kirimWhatsAppManual(namaSiswa, kelasSiswa) {
@@ -3511,7 +3580,296 @@ document.addEventListener('keydown', function(e){
     }
 });
 
+// Pulihkan halaman terakhir lebih dulu agar refresh tidak selalu kembali ke Beranda.
+// Update UI auth segera dari localStorage agar tidak ada efek flash Tamu -> Admin.
+const savedPageOnRefresh = localStorage.getItem('smpgelora_current_page') || 'home';
+showAppLoading('Sedang memuat data...');
+showPage(savedPageOnRefresh);
+updateAdminUI();
 loadData();
+async function addNativeExcelCharts(xlsxBuffer, chartConfigs){
+    if(typeof JSZip === 'undefined'){
+        throw new Error('JSZip belum tersedia untuk membuat chart Excel native.');
+    }
+    if(!Array.isArray(chartConfigs) || !chartConfigs.length) return xlsxBuffer;
+
+    const zip = await JSZip.loadAsync(xlsxBuffer);
+    const sheetXmlPath = 'xl/worksheets/sheet1.xml';
+    const relsPath = 'xl/worksheets/_rels/sheet1.xml.rels';
+    const sheetXml = await zip.file(sheetXmlPath).async('string');
+    const sheetRelsXml = await zip.file(relsPath).async('string');
+    const drawingMatch = sheetXml.match(/<drawing[^>]*r:id="([^"]+)"[^>]*\/>/);
+    if(!drawingMatch) throw new Error('Drawing Excel tidak ditemukan.');
+
+    const drawingRelId = drawingMatch[1];
+    const drawingRelRegex = new RegExp('<Relationship[^>]*Id="'+drawingRelId+'"[^>]*Target="([^"]+)"[^>]*/>');
+    const drawingRelMatch = sheetRelsXml.match(drawingRelRegex);
+    if(!drawingRelMatch) throw new Error('Relasi drawing Excel tidak ditemukan.');
+
+    const drawingTarget = drawingRelMatch[1].replace(/^\.\.\//,'');
+    const drawingPath = drawingTarget.startsWith('xl/') ? drawingTarget : 'xl/' + drawingTarget;
+    const drawingRelsPath = drawingPath.replace(/([^/]+)$/, '_rels/$1.rels');
+    let drawingXml = await zip.file(drawingPath).async('string');
+    let drawingRelsXml = zip.file(drawingRelsPath)
+        ? await zip.file(drawingRelsPath).async('string')
+        : '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"></Relationships>';
+
+    const esc = v => String(v ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&apos;');
+    const existingRIds = Array.from(drawingRelsXml.matchAll(/Id="rId(\d+)"/g)).map(m => Number(m[1]));
+    let nextRidNum = (existingRIds.length ? Math.max(...existingRIds) : 0) + 1;
+    const chartNumsExisting = Object.keys(zip.files).map(k => { const m=k.match(/^xl\/charts\/chart(\d+)\.xml$/); return m?Number(m[1]):0; }).filter(Boolean);
+    let chartNum = (chartNumsExisting.length ? Math.max(...chartNumsExisting) : 0) + 1;
+    let frameId = 1000 + chartNum;
+
+    let contentTypes = await zip.file('[Content_Types].xml').async('string');
+    const colLetters = n => { let out=''; while(n>0){ let r=(n-1)%26; out=String.fromCharCode(65+r)+out; n=Math.floor((n-1)/26); } return out; };
+
+    for(const cfg of chartConfigs){
+        const labels = Array.isArray(cfg.labels) ? cfg.labels.map(v=>String(v ?? '')) : [];
+        const values = Array.isArray(cfg.values) ? cfg.values.map(v=>Number(v)||0) : [];
+        if(!labels.length) continue;
+
+        const chartPath = `xl/charts/chart${chartNum}.xml`;
+        const catCol = colLetters(cfg.catCol);
+        const valCol = colLetters(cfg.valCol);
+        const catFormula = `'Rekap Pelanggaran'!$${catCol}$${cfg.dataStart}:$${catCol}$${cfg.dataStart + labels.length - 1}`;
+        const valFormula = `'Rekap Pelanggaran'!$${valCol}$${cfg.dataStart}:$${valCol}$${cfg.dataStart + values.length - 1}`;
+        const catPts = labels.map((label,i)=>`<c:pt idx="${i}"><c:v>${esc(label)}</c:v></c:pt>`).join('');
+        const numPts = values.map((v,i)=>`<c:pt idx="${i}"><c:v>${v}</c:v></c:pt>`).join('');
+        const chartType = cfg.chartType || 'bar';
+        const isLine = chartType === 'line';
+        const isPie = chartType === 'pie';
+        const seriesLabel = cfg.seriesLabel || 'Jumlah';
+        const barOrLine = isPie ? `<c:pieChart><c:varyColors val="1"/>` : isLine ? `<c:lineChart><c:grouping val="standard"/><c:varyColors val="0"/>` : `<c:barChart><c:barDir val="col"/><c:grouping val="clustered"/><c:varyColors val="1"/>`;
+        const endChart = isPie ? `</c:pieChart>` : isLine ? `</c:lineChart>` : `</c:barChart>`;
+        const extra = isPie ? '' : isLine
+            ? `<c:spPr><a:ln w="28575"><a:solidFill><a:srgbClr val="3B82F6"/></a:solidFill></a:ln></c:spPr><c:smooth val="0"/>`
+            : `<c:invertIfNegative val="0"/>`;
+        const axes = isPie ? '' : `<c:catAx><c:axId val="-201"/><c:scaling><c:orientation val="minMax"/></c:scaling><c:delete val="0"/><c:axPos val="b"/><c:tickLblPos val="nextTo"/><c:crossAx val="-202"/><c:crosses val="autoZero"/><c:auto val="1"/><c:lblAlgn val="ctr"/><c:lblOffset val="100"/></c:catAx><c:valAx><c:axId val="-202"/><c:scaling><c:orientation val="minMax"/></c:scaling><c:delete val="0"/><c:axPos val="l"/><c:majorGridlines/><c:numFmt formatCode="0" sourceLinked="1"/><c:majorTickMark val="none"/><c:minorTickMark val="none"/><c:tickLblPos val="nextTo"/><c:crossAx val="-201"/><c:crosses val="autoZero"/><c:crossBetween val="midCat"/></c:valAx>`;
+
+        const chartXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<c:chartSpace xmlns:c="http://schemas.openxmlformats.org/drawingml/2006/chart" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+<c:date1904 val="0"/><c:lang val="id-ID"/><c:roundedCorners val="0"/><c:chart><c:autoTitleDeleted val="0"/>
+<c:title><c:tx><c:rich><a:bodyPr/><a:lstStyle/><a:p><a:r><a:rPr lang="id-ID" sz="1400" b="1"/><a:t>${esc(cfg.title)}</a:t></a:r></a:p></c:rich></c:tx><c:layout/><c:overlay val="0"/></c:title>
+<c:plotArea><c:layout/>${barOrLine}
+<c:ser><c:idx val="0"/><c:order val="0"/><c:tx><c:strRef><c:f>'Rekap Pelanggaran'!$${valCol}$1</c:f><c:strCache><c:ptCount val="1"/><c:pt idx="0"><c:v>${esc(seriesLabel)}</c:v></c:pt></c:strCache></c:strRef></c:tx>
+<c:cat><c:strRef><c:f>${catFormula}</c:f><c:strCache><c:ptCount val="${labels.length}"/>${catPts}</c:strCache></c:strRef></c:cat>
+<c:val><c:numRef><c:f>${valFormula}</c:f><c:numCache><c:formatCode>0</c:formatCode><c:ptCount val="${values.length}"/>${numPts}</c:numCache></c:numRef></c:val>
+${extra}</c:ser>${endChart}${axes}</c:plotArea><c:plotVisOnly val="0"/><c:dispBlanksAs val="gap"/><c:showDLblsOverMax val="0"/></c:chart></c:chartSpace>`;
+        zip.file(chartPath, chartXml);
+
+        const rid = 'rId' + nextRidNum++;
+        drawingRelsXml = drawingRelsXml.replace('</Relationships>', `<Relationship Id="${rid}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/chart" Target="../charts/chart${chartNum}.xml"/></Relationships>`);
+
+        const row1 = cfg.anchorRow;
+        const row2 = cfg.anchorRow + (cfg.heightRows || 15);
+        const col1 = cfg.anchorCol ?? 7;
+        const col2 = cfg.anchorColEnd ?? 13;
+        const anchor = `<xdr:twoCellAnchor editAs="oneCell"><xdr:from><xdr:col>${col1}</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>${row1}</xdr:row><xdr:rowOff>0</xdr:rowOff></xdr:from><xdr:to><xdr:col>${col2}</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>${row2}</xdr:row><xdr:rowOff>0</xdr:rowOff></xdr:to><xdr:graphicFrame macro=""><xdr:nvGraphicFramePr><xdr:cNvPr id="${frameId++}" name="Chart ${chartNum}"/><xdr:cNvGraphicFramePr><a:graphicFrameLocks noGrp="1"/></xdr:cNvGraphicFramePr></xdr:nvGraphicFramePr><xdr:xfrm/><a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/chart"><c:chart xmlns:c="http://schemas.openxmlformats.org/drawingml/2006/chart" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" r:id="${rid}"/></a:graphicData></a:graphic></xdr:graphicFrame><xdr:clientData/></xdr:twoCellAnchor>`;
+        drawingXml = drawingXml.replace('</xdr:wsDr>', anchor + '</xdr:wsDr>');
+
+        if(!contentTypes.includes(`PartName="/xl/charts/chart${chartNum}.xml"`)){
+            contentTypes = contentTypes.replace('</Types>', `<Override PartName="/xl/charts/chart${chartNum}.xml" ContentType="application/vnd.openxmlformats-officedocument.drawingml.chart+xml"/></Types>`);
+        }
+        chartNum++;
+    }
+
+    zip.file(drawingRelsPath, drawingRelsXml);
+    zip.file(drawingPath, drawingXml);
+    zip.file('[Content_Types].xml', contentTypes);
+    return await zip.generateAsync({type:'arraybuffer', compression:'DEFLATE'});
+}
+
+async function exportToExcel(){
+    if(!records.length) return Swal.fire({
+        icon: 'info',
+        title: 'Data Kosong',
+        text: 'Tidak ada data untuk diexport!',
+        confirmButtonColor: '#1261a0'
+    });
+
+    const today = getLocalDateISO();
+    const pastDate = getLocalDateISO(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000));
+
+    const { value: formValues } = await Swal.fire({
+        title: '📗 Export ke Excel',
+        html: `
+            <div style="text-align: left; font-size: 13px;">
+                <label style="font-weight: bold; display: block; margin-bottom: 4px;">Dari Tanggal:</label>
+                <input id="swal-export-from" type="date" class="swal2-input" value="${pastDate}" style="margin: 0 0 12px 0; width: 100%;">
+                
+                <label style="font-weight: bold; display: block; margin-bottom: 4px;">Sampai Tanggal:</label>
+                <input id="swal-export-to" type="date" class="swal2-input" value="${today}" style="margin: 0 0 12px 0; width: 100%;">
+            </div>
+        `,
+        focusConfirm: false,
+        showCancelButton: true,
+        confirmButtonText: '📥 Export Sekarang',
+        cancelButtonText: 'Batal',
+        confirmButtonColor: '#1677b7',
+        preConfirm: () => {
+            const tglAwal = document.getElementById('swal-export-from').value;
+            const tglAkhir = document.getElementById('swal-export-to').value;
+            if (!tglAwal || !tglAkhir) {
+                Swal.showValidationMessage('Harap isi kedua tanggal!');
+                return false;
+            }
+            if (tglAwal > tglAkhir) {
+                Swal.showValidationMessage('Tanggal awal tidak boleh lebih besar dari tanggal akhir!');
+                return false;
+            }
+            return { tglAwal, tglAkhir };
+        }
+    });
+
+    if (!formValues) return;
+
+    const filteredRecords = records.filter(item => {
+    const tanggal = item.tanggal
+        ? item.tanggal.substring(0, 10)
+        : '';
+
+    return tanggal >= formValues.tglAwal &&
+           tanggal <= formValues.tglAkhir;
+});
+
+    if (!filteredRecords.length) {
+        return Swal.fire({
+            icon: 'warning',
+            title: 'Data Tidak Ditemukan',
+            text: `Tidak ada data pelanggaran dari rentang tanggal ${formValues.tglAwal} s/d ${formValues.tglAkhir}.`,
+            confirmButtonColor: '#1261a0'
+        });
+    }
+
+    Swal.fire({
+        title: 'Mengeksport Data...',
+        text: 'Mohon tunggu sebentar',
+        allowOutsideClick: false,
+        didOpen: () => Swal.showLoading()
+    });
+
+    try{
+        // Data chart native akan diambil langsung dari filteredRecords setelah workbook dibuat.
+
+        const workbook = new ExcelJS.Workbook();
+        const ws = workbook.addWorksheet('Rekap Pelanggaran');
+
+        // Area A:F tetap untuk tabel. Grafik ditempatkan di sebelah kanan tabel, mulai kolom H.
+        ws.mergeCells('A1:N1'); ws.mergeCells('A2:N2'); ws.mergeCells('A3:N3'); ws.mergeCells('A4:N4');
+        ws.getCell('A1').value = 'REKAPITULASI PELANGGARAN SISWA/SISWI';
+        ws.getCell('A2').value = 'SMP GELORA BEKASI';
+        ws.getCell('A3').value = 'TAHUN AJARAN 2026-2027';
+        ws.getCell('A4').value = `PERIODE: ${formValues.tglAwal} s/d ${formValues.tglAkhir}`;
+
+        ['A1','A2','A3','A4'].forEach((cell,i) => {
+            ws.getCell(cell).font = {name:'Arial', size:i===0?14:i===1?12:10, bold:true, italic: i===3};
+            ws.getCell(cell).alignment = {horizontal:'center', vertical:'middle'};
+        });
+
+        ws.addRow([]);
+        const header = ws.addRow(['No','Hari / Tanggal','Nama Siswa','Kelas','Jenis Pelanggaran','Foto']);
+        header.eachCell(cell => {
+            cell.fill = {type:'pattern', pattern:'solid', fgColor:{argb:'2F5597'}};
+            cell.font = {bold:true, color:{argb:'FFFFFF'}};
+            cell.alignment = {horizontal:'center', vertical:'middle'};
+            cell.border = {top:{style:'thin'}, left:{style:'thin'}, bottom:{style:'thin'}, right:{style:'thin'}};
+        });
+
+        [8,18,28,12,32,20].forEach((w,i) => ws.getColumn(i+1).width = w);
+        ws.getColumn(7).width = 3; // spacer
+        [18,18,18,18,18,18,18].forEach((w,i) => ws.getColumn(i+8).width = w);
+
+        // Buat SEMUA grafik seperti yang tersedia di aplikasi:
+        // Jenis = bar, Kelas = bar, Tingkat = pie, Minggu = line, Bulan = line.
+        // Semua menggunakan filteredRecords dari periode export yang sama.
+        const chartDefinitions = [
+            {key:'jenis', title:'Grafik: Jenis Pelanggaran', chartType:'bar', catCol:15, valCol:16, dataStart:2, anchorRow:4, heightRows:15},
+            {key:'kelas', title:'Grafik: Per Kelas', chartType:'bar', catCol:18, valCol:19, dataStart:2, anchorRow:20, heightRows:15},
+            {key:'tingkat', title:'Grafik: Per Tingkat', chartType:'pie', catCol:21, valCol:22, dataStart:2, anchorRow:36, heightRows:15},
+            {key:'minggu', title:'Grafik: Tren Per Minggu', chartType:'line', catCol:24, valCol:25, dataStart:2, anchorRow:52, heightRows:15},
+            {key:'bulan', title:'Grafik: Tren Per Bulan', chartType:'line', catCol:27, valCol:28, dataStart:2, anchorRow:68, heightRows:15}
+        ];
+        const nativeChartConfigs = [];
+        chartDefinitions.forEach(def => {
+            const grouped = getGroups(filteredRecords, def.key);
+            const labels = grouped.map(item => item[0]);
+            const values = grouped.map(item => Number(item[1]) || 0);
+            const catColLetter = String.fromCharCode(64 + def.catCol);
+            const valColLetter = String.fromCharCode(64 + def.valCol);
+            ws.getCell(1, def.catCol).value = 'Kategori';
+            ws.getCell(1, def.valCol).value = 'Jumlah';
+            labels.forEach((label, idx) => {
+                ws.getCell(def.dataStart + idx, def.catCol).value = label;
+                ws.getCell(def.dataStart + idx, def.valCol).value = values[idx];
+            });
+            ws.getColumn(def.catCol).hidden = true;
+            ws.getColumn(def.valCol).hidden = true;
+            if(labels.length){
+                nativeChartConfigs.push({
+                    ...def,
+                    labels,
+                    values,
+                    seriesLabel:'Jumlah'
+                });
+            }
+        });
+
+
+
+        for(let i=0; i<filteredRecords.length; i++){
+            const item = filteredRecords[i];
+            const row = ws.addRow([
+                i+1, formatTanggalIndonesia(item.tanggal)||'-', item.nama||'-', item.kelas||'-',
+                item.pelanggaran||'-', ''
+            ]);
+            row.height = 65;
+            row.eachCell({includeEmpty:true}, cell => {
+                cell.alignment = {vertical:'middle', horizontal:'center', wrapText:true};
+                cell.border = {top:{style:'thin'}, left:{style:'thin'}, bottom:{style:'thin'}, right:{style:'thin'}};
+            });
+
+            if(item.foto_url){
+                try{
+                    const response = await fetch(item.foto_url);
+                    const arrayBuffer = await response.arrayBuffer();
+                    const imageId = workbook.addImage({buffer:arrayBuffer, extension:'jpeg'});
+                    ws.addImage(imageId, {
+                        tl: {col:5.2, row:row.number-.9},
+                        ext: {width:60, height:60},
+                        editAs: 'oneCell'
+                    });
+                }catch(e){console.warn('Foto gagal dimasukkan:', e)}
+            }
+        }
+
+        let buffer = await workbook.xlsx.writeBuffer();
+        buffer = await addNativeExcelCharts(buffer, nativeChartConfigs);
+        const blob = new Blob([buffer], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `Rekap_Pelanggaran_${formValues.tglAwal}_sd_${formValues.tglAkhir}.xlsx`;
+        link.click();
+        URL.revokeObjectURL(url);
+
+        Swal.fire({
+            icon: 'success',
+            title: 'Berhasil Export',
+            text: 'File rekap Excel berhasil diunduh.',
+            confirmButtonColor: '#21a366'
+        });
+    }catch(err){
+        console.error(err);
+        Swal.fire({
+            icon: 'error',
+            title: 'Export Gagal',
+            text: 'Terjadi kesalahan saat export: '+err.message,
+            confirmButtonColor: '#e53935'
+        });
+    }
+}
+
 </script>
 </body>
 </html>
