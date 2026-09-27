@@ -1287,7 +1287,7 @@ body.dark-mode .nav-btn.active{color:#60a5fa}
 <section id="page-chart" class="page">
     <h2 class="section-title" style="margin-top:0">📊 Grafik Pelanggaran</h2>
     <div class="card chart-card">
-        <div class="form-group" style="margin-bottom:12px;">
+        <div class="form-group" style="margin-bottom:10px;">
             <label for="chart-filter">Tampilkan Grafik Berdasarkan:</label>
             <select id="chart-filter" onchange="updateChart(records)">
                 <option value="jenis">⚠️ Jenis Pelanggaran</option>
@@ -1295,6 +1295,25 @@ body.dark-mode .nav-btn.active{color:#60a5fa}
                 <option value="tingkat">🎓 Per Tingkat (Kelas 7, 8, & 9)</option>
                 <option value="minggu">📅 Tren Per Minggu</option>
                 <option value="bulan">📅 Tren Per Bulan</option>
+            </select>
+        </div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:10px;">
+            <div class="form-group" style="margin:0;">
+                <label for="chart-from" style="font-size:12px;">Dari Tanggal</label>
+                <input type="date" id="chart-from" onchange="updateChart(records)" style="width:100%; padding:9px; border:1px solid #ccd6e0; border-radius:9px;">
+            </div>
+            <div class="form-group" style="margin:0;">
+                <label for="chart-to" style="font-size:12px;">Sampai Tanggal</label>
+                <input type="date" id="chart-to" onchange="updateChart(records)" style="width:100%; padding:9px; border:1px solid #ccd6e0; border-radius:9px;">
+            </div>
+        </div>
+        <div class="form-group" style="margin-bottom:12px;">
+            <label for="chart-topn" style="font-size:12px;">Tampilkan</label>
+            <select id="chart-topn" onchange="updateChart(records)" style="width:100%; padding:9px; border:1px solid #ccd6e0; border-radius:9px;">
+                <option value="0">Semua data</option>
+                <option value="5">Top 5 saja</option>
+                <option value="10" selected>Top 10 saja</option>
+                <option value="15">Top 15 saja</option>
             </select>
         </div>
         <div class="chart-box"><canvas id="pelanggaranChart"></canvas></div>
@@ -1414,6 +1433,49 @@ body.dark-mode .nav-btn.active{color:#60a5fa}
     </div>
 </div>
 
+<!-- MODAL KELOLA KLASIFIKASI PELANGGARAN -->
+<div id="category-modal" class="modal" onclick="if(event.target===this)closeCategoryModal()">
+    <div class="modal-box" style="width: min(560px, 100%);">
+        <button class="modal-close" onclick="closeCategoryModal()">×</button>
+        <div class="lock">🏷️</div>
+        <h3>Kelola Klasifikasi Pelanggaran</h3>
+        <p>Atur kategori & keyword agar grafik mengelompokkan pelanggaran secara otomatis.</p>
+
+        <div class="card" style="margin-bottom:15px; background:var(--bg)">
+            <strong style="font-size:13px; display:block; margin-bottom:8px">➕ Tambah / Edit Kategori</strong>
+            <input type="hidden" id="cat-edit-id">
+            <div class="form-group" style="margin-bottom:8px">
+                <input id="cat-name" type="text" placeholder="Nama kategori (contoh: Terlambat)">
+            </div>
+            <div class="form-group" style="margin-bottom:8px">
+                <input id="cat-keywords" type="text" placeholder="Keyword dipisah koma (contoh: telat, terlambat, keterlambatan)">
+            </div>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+                <button class="success-btn" onclick="simpanKategori()">💾 Simpan Kategori</button>
+                <button class="secondary-btn" onclick="batalEditKategori()" id="btn-batal-kategori" style="display:none">Batal Edit</button>
+            </div>
+        </div>
+
+        <strong style="font-size:13px">💡 Saran dari data "Lainnya"</strong>
+        <p style="font-size:11px; color:var(--muted); margin:4px 0 8px;">Teks pelanggaran yang belum masuk kategori manapun. Klik untuk langsung buat kategori.</p>
+        <div id="lainnya-suggest-list" style="max-height:140px; overflow-y:auto; margin-bottom:14px; display:flex; flex-wrap:wrap; gap:6px;">
+            <span style="font-size:11px; color:var(--muted);">Memuat saran...</span>
+        </div>
+
+        <strong style="font-size:13px">📋 Daftar Kategori</strong>
+        <div style="overflow-x:auto; max-height:220px; overflow-y:auto; margin-top:8px;">
+            <table class="user-table">
+                <thead>
+                    <tr><th>Kategori</th><th>Keyword</th><th>Aksi</th></tr>
+                </thead>
+                <tbody id="category-table-body">
+                    <tr><td colspan="3" style="text-align:center;">Memuat...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
 <!-- SIDEBAR MENU -->
 <div id="side-menu" class="modal" onclick="if(event.target===this)closeMenu()">
     <div class="drawer-box">
@@ -1430,6 +1492,9 @@ body.dark-mode .nav-btn.active{color:#60a5fa}
             </button>
             <button id="drawer-audit-log" class="drawer-item" style="display: none;" onclick="closeMenu(); openLogModal();">
                 <span>📜</span> Log Aktivitas
+            </button>
+            <button id="drawer-manage-category" class="drawer-item" style="display: none;" onclick="closeMenu(); openCategoryModal();">
+                <span>🏷️</span> Kelola Klasifikasi
             </button>
             <button class="drawer-item" onclick="closeMenu(); showPage('report');">
                 <span>🚨</span> Report Pelanggaran 3x
@@ -1473,6 +1538,7 @@ try {
 }
 let records = [];
 let usersList = [];
+let violationCategories = [];
 let myChart = null;
 let followUpMap = {};
 try { followUpMap = JSON.parse(localStorage.getItem('smpgelora_tindak_lanjut') || '{}') || {}; } catch(e) { followUpMap = {}; }
@@ -1660,6 +1726,7 @@ function updateAdminUI(){
     const authBtn = document.getElementById('btn-auth-home');
     const manageUserBtn = document.getElementById('drawer-manage-user');
     const auditLogBtn = document.getElementById('drawer-audit-log');
+    const manageCategoryBtn = document.getElementById('drawer-manage-category');
     const userInfoText = document.getElementById('user-info-text');
     const loggedUsername = document.getElementById('logged-username');
 
@@ -1674,6 +1741,9 @@ function updateAdminUI(){
         inputs.forEach(x => x.disabled = false);
         save.disabled = false;
         notice.style.display = 'none';
+
+        // Admin & Super Admin boleh kelola klasifikasi
+        if(manageCategoryBtn) manageCategoryBtn.style.display = 'flex';
 
         if(currentUser.role === 'superadmin'){
             badge.textContent = '👑 Super Admin';
@@ -1696,6 +1766,7 @@ function updateAdminUI(){
         notice.style.display = 'block';
         if(manageUserBtn) manageUserBtn.style.display = 'none';
         if(auditLogBtn) auditLogBtn.style.display = 'none';
+        if(manageCategoryBtn) manageCategoryBtn.style.display = 'none';
         batalEdit();
     }
 
@@ -1874,13 +1945,231 @@ async function hapusUser(id, namaUser){
     }
 }
 
+/* ========== KELOLA KLASIFIKASI PELANGGARAN ========== */
+
+async function loadViolationCategories(){
+    try{
+        const { data, error } = await _supabase
+            .from('violation_categories')
+            .select('*')
+            .order('name', { ascending: true });
+
+        if(error){
+            console.warn('Gagal memuat klasifikasi:', error.message);
+            violationCategories = [];
+            return;
+        }
+        violationCategories = data || [];
+    }catch(err){
+        console.warn('Error loadViolationCategories:', err);
+        violationCategories = [];
+    }
+}
+
+async function openCategoryModal(){
+    if(!currentUser){
+        return Swal.fire({
+            icon: 'warning',
+            title: 'Akses Admin',
+            text: 'Login terlebih dahulu untuk mengelola klasifikasi.',
+            confirmButtonColor: '#1261a0'
+        });
+    }
+    document.getElementById('category-modal').classList.add('show');
+    batalEditKategori();
+    await renderCategoryTable();
+}
+
+function closeCategoryModal(){
+    document.getElementById('category-modal').classList.remove('show');
+    batalEditKategori();
+}
+
+async function renderCategoryTable(){
+    const tbody = document.getElementById('category-table-body');
+    if(!tbody) return;
+    tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;">Memuat...</td></tr>';
+
+    await loadViolationCategories();
+    renderLainnyaSuggest();
+
+    if(!violationCategories.length){
+        tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;">Belum ada kategori. Silakan tambah.</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = violationCategories.map(c => {
+        const kws = Array.isArray(c.keywords) ? c.keywords.join(', ') : '';
+        return `<tr>
+            <td><strong>${escapeHtml(c.name)}</strong></td>
+            <td style="font-size:11px; max-width:220px; white-space:normal;">${escapeHtml(kws)}</td>
+            <td style="white-space:nowrap;">
+                <button class="edit-btn" style="padding:4px 8px; margin-right:4px;" onclick="editKategori(${c.id})">Edit</button>
+                <button class="delete-btn" style="padding:4px 8px;" onclick="hapusKategori(${c.id}, '${escapeAttr(c.name)}')">Hapus</button>
+            </td>
+        </tr>`;
+    }).join('');
+}
+
+/** Ambil teks pelanggaran yang saat ini masuk "Lainnya", diurutkan dari paling sering */
+function getLainnyaSuggestions(limit = 12){
+    const counts = {};
+    (records || []).forEach(item => {
+        const raw = String(item.pelanggaran || '').trim();
+        if(!raw) return;
+        const cats = detectViolationCategories(raw);
+        // Hanya yang murni "Lainnya" (tidak cocok kategori manapun)
+        if(cats.length === 1 && cats[0] === 'Lainnya'){
+            counts[raw] = (counts[raw] || 0) + 1;
+        }
+    });
+    return Object.entries(counts)
+        .sort((a,b) => b[1] - a[1] || a[0].localeCompare(b[0], 'id'))
+        .slice(0, limit);
+}
+
+function renderLainnyaSuggest(){
+    const box = document.getElementById('lainnya-suggest-list');
+    if(!box) return;
+    const list = getLainnyaSuggestions(12);
+    if(!list.length){
+        box.innerHTML = '<span style="font-size:11px; color:var(--muted);">Tidak ada data "Lainnya". Semua pelanggaran sudah terklasifikasi 👍</span>';
+        return;
+    }
+    box.innerHTML = list.map(([text, count]) => {
+        const short = text.length > 40 ? text.slice(0, 38) + '…' : text;
+        return `<button type="button" onclick="quickAddFromSuggest('${escapeAttr(text)}')"
+            style="border:1px solid var(--border); background:var(--card); color:var(--text); border-radius:999px; padding:6px 11px; font-size:11px; font-weight:700; cursor:pointer;">
+            ${escapeHtml(short)} <span style="color:var(--primary);">(${count}x)</span>
+        </button>`;
+    }).join('');
+}
+
+function quickAddFromSuggest(text){
+    // Isi form tambah kategori otomatis
+    document.getElementById('cat-edit-id').value = '';
+    document.getElementById('cat-name').value = text;
+    // Keyword default = teks itu sendiri (lowercase) + kata-kata penting
+    const words = text.toLowerCase().replace(/[.,;:\/\\|+&]/g, ' ').split(/\s+/).filter(w => w.length > 2);
+    const keywords = [...new Set([text.toLowerCase(), ...words])].join(', ');
+    document.getElementById('cat-keywords').value = keywords;
+    document.getElementById('btn-batal-kategori').style.display = 'block';
+    document.getElementById('cat-name').focus();
+    Swal.fire({
+        icon: 'info',
+        title: 'Siap ditambahkan',
+        text: 'Form sudah terisi. Edit nama/keyword jika perlu, lalu klik Simpan Kategori.',
+        timer: 1800,
+        showConfirmButton: false
+    });
+}
+
+function editKategori(id){
+    const cat = violationCategories.find(c => c.id === id);
+    if(!cat) return;
+    document.getElementById('cat-edit-id').value = cat.id;
+    document.getElementById('cat-name').value = cat.name || '';
+    document.getElementById('cat-keywords').value = Array.isArray(cat.keywords) ? cat.keywords.join(', ') : '';
+    document.getElementById('btn-batal-kategori').style.display = 'block';
+}
+
+function batalEditKategori(){
+    document.getElementById('cat-edit-id').value = '';
+    document.getElementById('cat-name').value = '';
+    document.getElementById('cat-keywords').value = '';
+    document.getElementById('btn-batal-kategori').style.display = 'none';
+}
+
+async function simpanKategori(){
+    if(!currentUser) return;
+
+    const editId = document.getElementById('cat-edit-id').value;
+    const name = document.getElementById('cat-name').value.trim();
+    const rawKeywords = document.getElementById('cat-keywords').value.trim();
+
+    if(!name){
+        return Swal.fire({ icon:'warning', title:'Perhatian', text:'Nama kategori wajib diisi.', confirmButtonColor:'#1261a0' });
+    }
+
+    // Pecah keyword by koma, bersihkan, unique
+    const keywords = [...new Set(
+        rawKeywords.split(',')
+            .map(k => k.trim().toLowerCase())
+            .filter(Boolean)
+    )];
+
+    if(!keywords.length){
+        return Swal.fire({ icon:'warning', title:'Perhatian', text:'Minimal satu keyword wajib diisi.', confirmButtonColor:'#1261a0' });
+    }
+
+    try{
+        if(editId){
+            const { error } = await _supabase
+                .from('violation_categories')
+                .update({ name, keywords, updated_at: new Date().toISOString() })
+                .eq('id', editId);
+            if(error) throw error;
+            await catatLog('EDIT', `Mengubah klasifikasi: ${name}`);
+            Swal.fire({ icon:'success', title:'Berhasil', text:'Kategori diperbarui.', timer:1200, showConfirmButton:false });
+        } else {
+            const { error } = await _supabase
+                .from('violation_categories')
+                .insert([{ name, keywords }]);
+            if(error) throw error;
+            await catatLog('TAMBAH', `Menambah klasifikasi: ${name}`);
+            Swal.fire({ icon:'success', title:'Berhasil', text:'Kategori baru ditambahkan.', timer:1200, showConfirmButton:false });
+        }
+        batalEditKategori();
+        await renderCategoryTable();
+        // Refresh grafik kalau sedang di halaman chart
+        if(document.getElementById('page-chart')?.classList.contains('active')){
+            updateChart(records);
+        }
+    }catch(err){
+        Swal.fire({ icon:'error', title:'Gagal', text: err.message || String(err), confirmButtonColor:'#e53935' });
+    }
+}
+
+async function hapusKategori(id, nama){
+    if(!currentUser) return;
+    const confirm = await Swal.fire({
+        title: 'Hapus Kategori?',
+        text: `Kategori "${nama}" akan dihapus permanen.`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#e53935',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: 'Ya, Hapus',
+        cancelButtonText: 'Batal'
+    });
+    if(!confirm.isConfirmed) return;
+
+    try{
+        const { error } = await _supabase.from('violation_categories').delete().eq('id', id);
+        if(error) throw error;
+        await catatLog('HAPUS', `Menghapus klasifikasi: ${nama}`);
+        Swal.fire({ icon:'success', title:'Terhapus', text:'Kategori berhasil dihapus.', timer:1200, showConfirmButton:false });
+        await renderCategoryTable();
+        if(document.getElementById('page-chart')?.classList.contains('active')){
+            updateChart(records);
+        }
+    }catch(err){
+        Swal.fire({ icon:'error', title:'Gagal', text: err.message || String(err), confirmButtonColor:'#e53935' });
+    }
+}
+
 function updateStats(){
     document.getElementById('stat-total').textContent = records.length;
 
-    const types = new Set(
-        records.map(x => (x.pelanggaran||'').trim().toLowerCase()).filter(Boolean)
-    );
-    document.getElementById('stat-types').textContent = types.size;
+    // Hitung jumlah kategori unik (sama logika dengan grafik Jenis Pelanggaran)
+    // Bukan lagi hitung teks mentah yang ditulis guru.
+    const categorySet = new Set();
+    (records || []).forEach(item => {
+        const raw = String(item.pelanggaran || '').trim();
+        if(!raw) return;
+        detectViolationCategories(raw).forEach(cat => categorySet.add(cat));
+    });
+    document.getElementById('stat-types').textContent = categorySet.size;
 
     // Hitung siswa yang sudah ditindak berdasarkan status tindak lanjut
     // pada Report 3x. Hanya status selain "Belum Ditindak" yang dihitung.
@@ -1889,6 +2178,31 @@ function updateStats(){
         return follow.status && follow.status !== 'Belum Ditindak';
     });
     document.getElementById('stat-acted').textContent = actedStudents.length;
+}
+
+/** Deteksi kategori pelanggaran berdasarkan keyword dinamis dari Supabase */
+function detectViolationCategories(text){
+    const t = String(text || '')
+        .toLowerCase()
+        .replace(/[.,;:\/\\|+&]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+
+    const matched = [];
+
+    (violationCategories || []).forEach(cat => {
+        const keywords = Array.isArray(cat.keywords) ? cat.keywords : [];
+        const hit = keywords.some(kw => {
+            const k = String(kw || '').toLowerCase().trim();
+            if(!k) return false;
+            if(k.includes(' ')) return t.includes(k);
+            return new RegExp('\\b' + k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b').test(t);
+        });
+        if(hit) matched.push(cat.name);
+    });
+
+    if(matched.length === 0) matched.push('Lainnya');
+    return matched;
 }
 
 function getGroups(data, filterType){
@@ -2037,138 +2351,7 @@ if(parts.length === 3){
     }
 
     // ==========================================
-    // JENIS PELANGGARAN
-    // ==========================================
-
-    /*
-     * Fungsi untuk menentukan kategori berdasarkan
-     * kata-kata yang ada di dalam tulisan guru.
-     */
-    function detectViolationCategories(text){
-
-        const t = String(text || '')
-            .toLowerCase()
-            .replace(/[.,;:\/\\|+&]/g, ' ')
-            .replace(/\s+/g, ' ')
-            .trim();
-
-        // Satu catatan BOLEH memiliki lebih dari satu kategori.
-        // Contoh: "Terlambat 4 menit dan Atribut tidak lengkap"
-        // => ['Terlambat', 'Atribut/Seragam'].
-        // Hanya keyword yang cukup spesifik yang dipakai agar grafik
-        // tidak membuat kategori secara ngawur.
-        const categories = [];
-
-        // TERLAMBAT
-        if(
-            /\btelat\b/.test(t) ||
-            /\bterlambat\b/.test(t) ||
-            /\bketerlambatan\b/.test(t) ||
-            /\bdatang\s+(terlambat|telat)\b/.test(t)
-        ){
-            categories.push('Terlambat');
-        }
-
-        // MEROKOK
-        if(
-            /\brokok\b/.test(t) ||
-            /\bmerokok\b/.test(t)
-        ){
-            categories.push('Merokok');
-        }
-
-        // ATRIBUT / SERAGAM
-        if(
-            /\batribut\b/.test(t) ||
-            /\bseragam\b/.test(t) ||
-            /\bbaju\b/.test(t) ||
-            /\bpakaian\b/.test(t) ||
-            /\bkaos\s+kaki\b/.test(t) ||
-            /\bsabuk\b/.test(t) ||
-            /\bikat\s+pinggang\b/.test(t) ||
-            /\btopi\b/.test(t) ||
-            /\bdasi\b/.test(t) ||
-            /\bsepatu\b/.test(t) ||
-            /\bhijab\b/.test(t) ||
-            /\bjilbab\b/.test(t) ||
-            /\bbergo\b/.test(t)
-        ){
-            categories.push('Atribut/Seragam');
-        }
-
-        // RAMBUT
-        if(
-            /\brambut\b/.test(t) ||
-            /\bgondrong\b/.test(t) ||
-            /\bmodel\s+rambut\b/.test(t) ||
-            /\bpotongan\s+rambut\b/.test(t)
-        ){
-            categories.push('Rambut');
-        }
-
-        // BOLOS / TIDAK HADIR
-        if(
-            /\bbolos\b/.test(t) ||
-            /\bmembolos\b/.test(t) ||
-            /\btidak\s+masuk\b/.test(t) ||
-            /\btidak\s+hadir\b/.test(t) ||
-            /\balpa\b/.test(t) ||
-            /\btanpa\s+keterangan\b/.test(t) ||
-            /\bkabur\b/.test(t)
-        ){
-            categories.push('Bolos/Tidak Hadir');
-        }
-
-        // HP / HANDPHONE
-        if(
-            /\bhp\b/.test(t) ||
-            /\bhandphone\b/.test(t) ||
-            /\bhand\s*phone\b/.test(t) ||
-            /\bponsel\b/.test(t) ||
-            /\bsmartphone\b/.test(t)
-        ){
-            categories.push('HP/Handphone');
-        }
-
-        // BERKELAHI / KEKERASAN
-        if(
-            /\bberkelahi\b/.test(t) ||
-            /\bberantem\b/.test(t) ||
-            /\btawuran\b/.test(t) ||
-            /\bmemukul\b/.test(t) ||
-            /\bdipukul\b/.test(t) ||
-            /\bpukulan\b/.test(t) ||
-            /\bpukul\b/.test(t) ||
-            /\bkekerasan\b/.test(t) ||
-            /\bperkelahian\b/.test(t)
-        ){
-            categories.push('Berkelahi/Kekerasan');
-        }
-
-        // KETERTIBAN / PERILAKU
-        // Keyword umum seperti "mengganggu", "ketertiban", dan
-        // "perilaku" sengaja tidak dipakai sendirian.
-        if(
-            /\bgaduh\b/.test(t) ||
-            /\bribut\b/.test(t) ||
-            /\btidak\s+tertib\b/.test(t) ||
-            /\btidak\s+sopan\b/.test(t) ||
-            /\bmengganggu\s+teman\b/.test(t)
-        ){
-            categories.push('Ketertiban/Perilaku');
-        }
-
-        // Jika benar-benar tidak cocok dengan kategori yang jelas,
-        // baru masuk Lainnya.
-        if(categories.length === 0){
-            categories.push('Lainnya');
-        }
-
-        return categories;
-    }
-
-    // ==========================================
-    // PROSES SEMUA DATA PELANGGARAN
+    // PROSES SEMUA DATA PELANGGARAN (jenis)
     // ==========================================
 
     data.forEach(item => {
@@ -2200,13 +2383,36 @@ function updateChart(data = records) {
 
     const filterType = filterEl ? filterEl.value : 'jenis';
 
+    // Filter rentang tanggal (opsional)
+    const fromEl = document.getElementById('chart-from');
+    const toEl = document.getElementById('chart-to');
+    const fromDate = fromEl?.value || '';
+    const toDate = toEl?.value || '';
+    let filtered = data || [];
+    if(fromDate || toDate){
+        filtered = filtered.filter(item => {
+            const tgl = item.tanggal ? String(item.tanggal).substring(0, 10) : '';
+            if(!tgl) return false;
+            if(fromDate && tgl < fromDate) return false;
+            if(toDate && tgl > toDate) return false;
+            return true;
+        });
+    }
+
     // Hapus chart sebelumnya
     if (myChart) {
         myChart.destroy();
         myChart = null;
     }
 
-    const grouped = getGroups(data, filterType);
+    let grouped = getGroups(filtered, filterType);
+
+    // Top N (hanya untuk jenis & kelas; tren minggu/bulan & pie tingkat tetap full)
+    const topNEl = document.getElementById('chart-topn');
+    const topN = topNEl ? parseInt(topNEl.value, 10) || 0 : 0;
+    if(topN > 0 && (filterType === 'jenis' || filterType === 'kelas')){
+        grouped = grouped.slice(0, topN);
+    }
 
     const labels = grouped.map(item => item[0]);
     const values = grouped.map(item => item[1]);
@@ -2886,7 +3092,10 @@ async function loadData(){
 
         records = data || [];
         filteredRecordsCache = [...records];
-        await loadFollowUpsFromSupabase();
+        await Promise.all([
+            loadFollowUpsFromSupabase(),
+            loadViolationCategories()
+        ]);
         updateAdminUI();
         updateChart(records);
         renderThreeStrikeReport();
