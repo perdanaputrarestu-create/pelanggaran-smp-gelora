@@ -1606,7 +1606,7 @@ body.dark-mode .stat-navy .stat-value{color:#f8fafc}
 <!-- REPORT 3X PELANGGARAN -->
 <section id="page-report" class="page">
     <h2 class="section-title" style="margin-top:0">🚨 Report 3x Pelanggaran</h2>
-    <div class="notice">Siswa otomatis masuk report setelah mencapai <strong>3 kali atau lebih</strong> pelanggaran. Status tindak lanjut dapat diperbarui oleh Admin.</div>
+    <div class="notice">Siswa otomatis masuk report setelah mencapai <strong>3 kali atau lebih</strong> pelanggaran (dihitung per <strong>nama + kelas</strong>). Status tindak lanjut dapat diperbarui oleh Admin.</div>
     <div class="card">
         <div class="search" style="margin-bottom:12px;">
             <span>🔍</span><input id="report-search" type="text" placeholder="Cari nama siswa atau kelas..." oninput="renderThreeStrikeReport()">
@@ -3041,15 +3041,15 @@ function getThreeStrikeStudents(){
         const kelas = String(item.kelas || '').trim();
         if(!nama) return;
 
-        // Report 3x dikelompokkan berdasarkan NAMA siswa.
-        // Perbedaan penulisan kelas tidak lagi memecah hitungan pelanggaran.
-        const key = normalizeName(nama);
+        // Report 3x dikelompokkan berdasarkan NAMA + KELAS.
+        // Siswa nama sama tapi kelas beda TIDAK digabung.
+        const key = getStudentKey(nama, kelas || '-');
 
         if(!groups[key]){
             groups[key] = {
                 nama,
                 kelas: kelas || '-',
-                kelasList: [],
+                kelasList: kelas ? [kelas] : [],
                 records: []
             };
         }
@@ -3062,7 +3062,7 @@ function getThreeStrikeStudents(){
 
     return Object.values(groups)
         .map(g => {
-            // Tampilkan kelas dari pelanggaran terbaru.
+            // Tampilkan kelas dari pelanggaran terbaru dalam grup nama+kelas ini.
             const latest = [...g.records].sort((a,b) =>
                 String(b.tanggal||'').localeCompare(String(a.tanggal||'')) ||
                 Number(b.id||0) - Number(a.id||0)
@@ -3073,7 +3073,8 @@ function getThreeStrikeStudents(){
         .filter(g => g.records.length >= 3)
         .sort((a,b) =>
             b.records.length - a.records.length ||
-            a.nama.localeCompare(b.nama, 'id')
+            a.nama.localeCompare(b.nama, 'id') ||
+            a.kelas.localeCompare(b.kelas, 'id')
         );
 }
 
@@ -3503,7 +3504,22 @@ async function loadData(){
     }
 }
 
-/** Ambil semua pelanggaran siswa berdasarkan NAMA LENGKAP saja (konsisten dengan Report 3x) */
+/** Ambil pelanggaran siswa berdasarkan NAMA + KELAS (konsisten dengan Report 3x) */
+function getRecordsByStudent(namaSiswa, kelasSiswa){
+    const cleanName = normalizeName(namaSiswa);
+    const cleanKelas = normalizeName(String(kelasSiswa || '-').trim() || '-');
+    return records
+        .filter(r =>
+            normalizeName(r.nama) === cleanName &&
+            normalizeName(String(r.kelas || '-').trim() || '-') === cleanKelas
+        )
+        .sort((a,b) =>
+            String(a.tanggal||'').localeCompare(String(b.tanggal||'')) ||
+            Number(a.id||0) - Number(b.id||0)
+        );
+}
+
+/** Kompatibilitas: filter hanya nama */
 function getRecordsByStudentName(namaSiswa){
     const cleanName = normalizeName(namaSiswa);
     return records
@@ -3514,9 +3530,11 @@ function getRecordsByStudentName(namaSiswa){
         );
 }
 
-/** Kelas terbaru dari riwayat siswa (nama saja) */
+/** Kelas terbaru dari riwayat siswa (utamakan filter nama+kelas jika kelas diberikan) */
 function getLatestClassByName(namaSiswa, fallbackKelas){
-    const list = getRecordsByStudentName(namaSiswa);
+    const list = fallbackKelas
+        ? getRecordsByStudent(namaSiswa, fallbackKelas)
+        : getRecordsByStudentName(namaSiswa);
     if(!list.length) return fallbackKelas || '-';
     const latest = [...list].sort((a,b) =>
         String(b.tanggal||'').localeCompare(String(a.tanggal||'')) ||
@@ -3526,9 +3544,9 @@ function getLatestClassByName(namaSiswa, fallbackKelas){
 }
 
 async function kirimWhatsAppManual(namaSiswa, kelasSiswa) {
-    const listSiswa = getRecordsByStudentName(namaSiswa);
+    const listSiswa = getRecordsByStudent(namaSiswa, kelasSiswa);
     const totalCount = listSiswa.length;
-    const kelasTampil = getLatestClassByName(namaSiswa, kelasSiswa);
+    const kelasTampil = String(kelasSiswa || '-').trim() || getLatestClassByName(namaSiswa, kelasSiswa);
 
     const result = await Swal.fire({
         title: '📱 Beritahu Wali Kelas/Murid',
@@ -3556,9 +3574,9 @@ async function kirimWhatsAppManual(namaSiswa, kelasSiswa) {
 }
 
 async function checkPelanggaranCountAndPrompt(namaSiswa, kelasSiswa) {
-    const listSiswa = getRecordsByStudentName(namaSiswa);
+    const listSiswa = getRecordsByStudent(namaSiswa, kelasSiswa);
     const totalCount = listSiswa.length;
-    const kelasTampil = getLatestClassByName(namaSiswa, kelasSiswa);
+    const kelasTampil = String(kelasSiswa || '-').trim() || getLatestClassByName(namaSiswa, kelasSiswa);
 
     if (totalCount >= 3) {
         const result = await Swal.fire({
@@ -3700,10 +3718,10 @@ async function simpanData(){
 }
 
 function cetakSuratPanggilan(namaSiswa, kelasSiswa) {
-    // Group by nama lengkap saja (sama dengan Report 3x)
-    const listSiswa = getRecordsByStudentName(namaSiswa);
+    // Group by nama + kelas (sama dengan Report 3x)
+    const listSiswa = getRecordsByStudent(namaSiswa, kelasSiswa);
     const totalCount = listSiswa.length;
-    const kelasTampil = getLatestClassByName(namaSiswa, kelasSiswa);
+    const kelasTampil = String(kelasSiswa || '-').trim() || getLatestClassByName(namaSiswa, kelasSiswa);
     const tgl = new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
 
     let tabelPelanggaranHtml = listSiswa.map((item, idx) => `
