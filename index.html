@@ -13,18 +13,23 @@
 
 <style>
 :root{
-    --primary:#1261a0;
-    --primary-dark:#0b4779;
-    --primary-light:#eaf4fc;
-    --success:#21a366;
-    --danger:#e53935;
-    --warning:#f5b400;
-    --text:#172033;
-    --muted:#6b7280;
-    --bg:#f3f6fa;
-    --card:#fff;
-    --border:#e5eaf0;
-    --shadow:0 5px 18px rgba(20,50,80,.08);
+    --primary:#f97316;
+    --primary-dark:#ea580c;
+    --primary-light:#fff7ed;
+    --navy:#0f172a;
+    --navy-mid:#1e3a5f;
+    --success:#10b981;
+    --danger:#ef4444;
+    --warning:#f59e0b;
+    --text:#0f172a;
+    --muted:#64748b;
+    --bg:#f8fafc;
+    --card:#ffffff;
+    --border:#e2e8f0;
+    --shadow:0 4px 16px rgba(15,23,42,.06);
+    --shadow-lg:0 10px 30px rgba(15,23,42,.10);
+    --radius:16px;
+    --radius-sm:12px;
 }
 
 body.dark-mode {
@@ -33,7 +38,9 @@ body.dark-mode {
     --text: #f8fafc;
     --muted: #94a3b8;
     --border: #334155;
-    --shadow: 0 5px 18px rgba(0,0,0,.3);
+    --shadow: 0 4px 16px rgba(0,0,0,.25);
+    --shadow-lg: 0 10px 30px rgba(0,0,0,.35);
+    --primary-light: #1e293b;
 }
 body.dark-mode .app, 
 body.dark-mode .record, 
@@ -56,10 +63,11 @@ body.dark-mode input, body.dark-mode select {
 html{scroll-behavior:smooth}
 body{
     margin:0;
-    font-family:Arial,Helvetica,sans-serif;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
     background:var(--bg);
     color:var(--text);
     transition: background 0.3s, color 0.3s;
+    -webkit-font-smoothing:antialiased;
 }
 
 /* Loading screen saat refresh / pengambilan data */
@@ -84,7 +92,7 @@ body{
 .app-loading-spinner{
     width:46px;
     height:46px;
-    border:4px solid rgba(18,97,160,.16);
+    border:4px solid rgba(249,115,22,.16);
     border-top-color:var(--primary);
     border-radius:50%;
     animation:smpGeloraSpin .8s linear infinite;
@@ -102,30 +110,32 @@ button{cursor:pointer}
     width:min(1180px,100%);
     min-height:100vh;
     margin:auto;
-    background:#fff;
+    background:var(--bg);
 }
 .topbar{
     position:sticky;
     top:0;
     z-index:50;
     height:64px;
-    background:linear-gradient(135deg,var(--primary-dark),var(--primary));
+    background:linear-gradient(135deg,#0f172a 0%,#1e3a5f 55%,#1e293b 100%);
     color:#fff;
     display:flex;
     align-items:center;
-    padding:0 18px;
-    box-shadow:0 3px 12px rgba(0,0,0,.15);
+    padding:0 16px;
+    box-shadow:0 4px 20px rgba(15,23,42,.35);
 }
 .logo{
-    width:38px;height:38px;border-radius:50%;
-    background:rgba(255,255,255,.15);
+    width:40px;height:40px;border-radius:12px;
+    background:rgba(255,255,255,.18);
     display:flex;align-items:center;justify-content:center;
-    margin-right:10px;font-size:21px;
+    margin-right:11px;font-size:20px;
+    border:1px solid rgba(255,255,255,.2);
 }
-.brand{font-size:15px;font-weight:800;flex:1}
+.brand{font-size:14px;font-weight:800;flex:1;letter-spacing:.2px}
 .menu-btn{
-    border:0;background:transparent;color:#fff;font-size:22px;
-    padding:5px 8px;margin-left:4px;
+    border:0;background:rgba(255,255,255,.12);color:#fff;font-size:18px;
+    width:38px;height:38px;border-radius:11px;margin-left:6px;
+    display:flex;align-items:center;justify-content:center;
 }
 .content{padding:18px 16px 90px}
 .page{display:none}
@@ -138,34 +148,35 @@ button{cursor:pointer}
     margin:0;color:var(--primary-dark);
     font-size:22px;line-height:1.2;
 }
-body.dark-mode .hero h1{ color: #60a5fa; }
+body.dark-mode .hero h1{ color: #fb923c; }
 .hero h2{
     margin:7px 0 3px;color:var(--primary);
     font-size:17px;
 }
-body.dark-mode .hero h2{ color: #93c5fd; }
+body.dark-mode .hero h2{ color: #fdba74; }
 .hero p{
     margin:0;color:var(--muted);font-weight:700;font-size:13px;
 }
 .stats{
     display:grid;
     grid-template-columns:repeat(2,1fr);
-    gap:11px;
-    margin:12px 0;
+    gap:12px;
+    margin:14px 0;
 }
 .stat{
-    background:#fff;border:1px solid var(--border);
-    border-radius:13px;padding:15px;
+    background:var(--card);border:1px solid var(--border);
+    border-radius:var(--radius);padding:16px;
     box-shadow:var(--shadow);
-    min-height:92px;
+    min-height:96px;
+    transition:transform .15s, box-shadow .15s;
 }
 .stat-icon{font-size:20px;margin-bottom:8px}
-.stat-label{font-size:12px;color:var(--muted);font-weight:700}
-.stat-value{font-size:21px;font-weight:800;margin-top:4px}
+.stat-label{font-size:11px;color:var(--muted);font-weight:700;letter-spacing:.2px}
+.stat-value{font-size:22px;font-weight:800;margin-top:4px;color:var(--text)}
 .access-card{
     margin:14px 0;
-    background:#fff;border:1px solid var(--border);
-    border-radius:13px;padding:13px;
+    background:var(--card);border:1px solid var(--border);
+    border-radius:var(--radius);padding:16px;
     box-shadow:var(--shadow);
 }
 .access-line{
@@ -180,20 +191,22 @@ body.dark-mode .hero h2{ color: #93c5fd; }
 .badge.superadmin{background:#7c3aed}
 
 .primary-btn,.success-btn,.excel-btn,.danger-btn,.secondary-btn,.wa-btn{
-    width:100%;border:0;border-radius:9px;padding:12px 14px;
-    font-weight:800;color:#fff;
+    width:100%;border:0;border-radius:var(--radius-sm);padding:13px 16px;
+    font-weight:700;color:#fff;font-size:14px;
+    transition:transform .12s, box-shadow .12s, opacity .12s;
 }
-.primary-btn{background:var(--primary)}
-.success-btn{background:var(--success)}
-.excel-btn{background:#1677b7}
+.primary-btn:active,.success-btn:active,.excel-btn:active{transform:scale(.98)}
+.primary-btn{background:var(--primary);box-shadow:0 4px 14px rgba(249,115,22,.35)}
+.success-btn{background:var(--success);box-shadow:0 4px 14px rgba(16,185,129,.25)}
+.excel-btn{background:linear-gradient(135deg,#ea580c,#f97316);box-shadow:0 6px 18px rgba(249,115,22,.35)}
 .danger-btn{background:var(--danger)}
 .wa-btn{background:#25d366; color:#fff}
-.secondary-btn{background:#edf1f5;color:#344054}
+.secondary-btn{background:#f1f5f9;color:#334155}
 body.dark-mode .secondary-btn{background:#334155;color:#f8fafc}
-.section-title{font-size:17px;margin:22px 0 10px;}
+.section-title{font-size:16px;margin:22px 0 12px;font-weight:800;color:var(--text)}
 .card{
-    background:#fff;border:1px solid var(--border);
-    border-radius:13px;box-shadow:var(--shadow);padding:14px;
+    background:var(--card);border:1px solid var(--border);
+    border-radius:var(--radius);box-shadow:var(--shadow);padding:16px;
 }
 .notice{
     background:#fff8df;border:1px solid #f1df9d;
@@ -218,8 +231,9 @@ body.dark-mode .notice{
 }
 
 .record{
-    border:1px solid var(--border);border-radius:12px;padding:12px;
-    display:grid;grid-template-columns:1fr 66px;gap:10px;background:#fff;
+    border:1px solid var(--border);border-radius:var(--radius);padding:14px;
+    display:grid;grid-template-columns:1fr 66px;gap:10px;background:var(--card);
+    box-shadow:var(--shadow);
 }
 .record-main{min-width:0}
 .record-date{font-size:11px;color:var(--muted);font-weight:700;margin-bottom:6px}
@@ -246,7 +260,7 @@ body.dark-mode .record-meta{color:#94a3b8}
     width:100%;padding:11px;border:1px solid #ccd6e0;
     border-radius:9px;outline:none;background:#fff;
 }
-.form-group input:focus, .form-group select:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(18,97,160,.1)}
+.form-group input:focus, .form-group select:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(249,115,22,.1)}
 .file-note{font-size:11px;color:var(--muted);font-weight:normal}
 .form-actions{display:grid;gap:8px;margin-top:5px}
 .chart-card{padding:13px}
@@ -282,18 +296,20 @@ body.dark-mode .record-meta{color:#94a3b8}
 .bottom-nav{
     position:fixed;left:50%;bottom:0;transform:translateX(-50%);
     width:min(1180px,100%);
-    height:68px;background:#fff;border-top:1px solid var(--border);
+    height:68px;background:rgba(255,255,255,.92);border-top:1px solid var(--border);
     display:grid;grid-template-columns:repeat(5,1fr);
-    z-index:60;box-shadow:0 -4px 15px rgba(0,0,0,.08);
+    z-index:60;box-shadow:0 -4px 24px rgba(15,23,42,.08);
+    backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
 }
+body.dark-mode .bottom-nav{background:rgba(30,41,59,.94)}
 .nav-btn{
-    border:0;background:transparent;color:#7c8794;
+    border:0;background:transparent;color:#94a3b8;
     display:flex;flex-direction:column;align-items:center;justify-content:center;
     gap:3px;font-size:10px;font-weight:700;
 }
 .nav-btn span:first-child{font-size:19px}
 .nav-btn.active{color:var(--primary)}
-body.dark-mode .nav-btn.active{color:#60a5fa}
+body.dark-mode .nav-btn.active{color:#fb923c}
 
 .modal{
     position:fixed;inset:0;background:rgba(13,28,43,.62);
@@ -424,7 +440,7 @@ body.dark-mode .nav-btn.active{color:#60a5fa}
 
     body{
         background:
-            radial-gradient(circle at 100% 0%, rgba(18,97,160,.10), transparent 32%),
+            radial-gradient(circle at 100% 0%, rgba(249,115,22,.10), transparent 32%),
             var(--bg);
         overflow-x:hidden;
     }
@@ -443,8 +459,8 @@ body.dark-mode .nav-btn.active{color:#60a5fa}
         height:68px;
         padding:0 14px;
         background:
-            linear-gradient(135deg,#083b68 0%,#1261a0 55%,#2185d0 100%);
-        box-shadow:0 5px 22px rgba(8,59,104,.25);
+            linear-gradient(135deg,#0f172a 0%,#1e3a5f 55%,#1e293b 100%);
+        box-shadow:0 5px 22px rgba(15,23,42,.35);
     }
 
     .logo{
@@ -497,8 +513,8 @@ body.dark-mode .nav-btn.active{color:#60a5fa}
         border-radius:24px;
         color:white;
         background:
-            linear-gradient(135deg,#0b4779,#1261a0 55%,#2185d0);
-        box-shadow:0 10px 28px rgba(18,97,160,.20);
+            linear-gradient(135deg,#0f172a,#1e3a5f 55%,#334155);
+        box-shadow:0 10px 28px rgba(15,23,42,.25);
     }
 
     .hero::before{
@@ -599,8 +615,8 @@ body.dark-mode .nav-btn.active{color:#60a5fa}
 
     .excel-btn{
         margin-top:2px;
-        background:linear-gradient(135deg,#1261a0,#2185d0);
-        box-shadow:0 7px 17px rgba(18,97,160,.20);
+        background:linear-gradient(135deg,#ea580c,#f97316);
+        box-shadow:0 7px 17px rgba(249,115,22,.20);
     }
 
     /* =========================
@@ -630,7 +646,7 @@ body.dark-mode .nav-btn.active{color:#60a5fa}
         border-radius:50%;
         right:-18px;
         bottom:-18px;
-        background:rgba(18,97,160,.06);
+        background:rgba(249,115,22,.06);
     }
 
     .stat-icon{
@@ -703,7 +719,7 @@ body.dark-mode .nav-btn.active{color:#60a5fa}
         top:0;
         bottom:0;
         width:4px;
-        background:linear-gradient(#1261a0,#36a3ff);
+        background:linear-gradient(#ea580c,#fb923c);
         border-radius:4px;
     }
 
@@ -807,7 +823,7 @@ body.dark-mode .nav-btn.active{color:#60a5fa}
 
     .form-group input:focus,
     .form-group select:focus{
-        box-shadow:0 0 0 3px rgba(18,97,160,.12);
+        box-shadow:0 0 0 3px rgba(249,115,22,.12);
     }
 
     .form-actions{
@@ -901,12 +917,12 @@ body.dark-mode .nav-btn.active{color:#60a5fa}
         transition:.2s;
     }
 
-    .nav-btn.active span:first-child{
+    .nav-btn:not(.nav-btn-add).active span:first-child{
         background:var(--primary-light);
         transform:translateY(-2px);
     }
 
-    body.dark-mode .nav-btn.active span:first-child{
+    body.dark-mode .nav-btn:not(.nav-btn-add).active span:first-child{
         background:#263b56;
     }
 
@@ -914,21 +930,7 @@ body.dark-mode .nav-btn.active{color:#60a5fa}
         font-weight:800;
     }
 
-    /* Tombol tambah lebih menonjol */
-    .nav-btn[data-page="form"] span:first-child{
-        background:linear-gradient(135deg,#1261a0,#2185d0);
-        color:#fff;
-        width:44px;
-        height:36px;
-        border-radius:14px;
-        font-size:21px;
-        box-shadow:0 5px 13px rgba(18,97,160,.28);
-    }
-
-    .nav-btn[data-page="form"].active span:first-child{
-        transform:translateY(-4px) scale(1.04);
-        background:linear-gradient(135deg,#0b4779,#1261a0);
-    }
+    /* Tombol tambah — digantikan style .nav-btn-add di blok PREMIUM UI */
 
     /* =========================
        MODAL
@@ -1163,6 +1165,249 @@ body.dark-mode .nav-btn.active{color:#60a5fa}
     }
 }
 
+/* =========================================================
+   PREMIUM UI — Navy + Orange
+   ========================================================= */
+
+.hero-premium{
+    text-align:center;
+    padding:28px 18px 24px !important;
+    border-radius:0 0 28px 28px !important;
+    margin:0 -16px 16px !important;
+    background:
+        radial-gradient(ellipse at 80% 0%, rgba(249,115,22,.35), transparent 50%),
+        linear-gradient(160deg, #070b14 0%, #0f172a 45%, #1e293b 100%) !important;
+    box-shadow:0 12px 40px rgba(15,23,42,.35) !important;
+}
+.hero-crest{
+    width:56px;height:56px;margin:0 auto 12px;
+    border-radius:50%;
+    background:rgba(255,255,255,.1);
+    border:1px solid rgba(255,255,255,.18);
+    display:flex;align-items:center;justify-content:center;
+    font-size:28px;
+}
+.hero-premium h1{
+    font-size:20px !important;
+    letter-spacing:.5px;
+    margin:0 !important;
+    color:#fff !important;
+}
+.hero-premium h2{
+    font-size:12px !important;
+    font-weight:600 !important;
+    color:rgba(255,255,255,.7) !important;
+    margin:6px 0 10px !important;
+}
+.hero-premium p{
+    font-size:11px !important;
+    color:#fb923c !important;
+    font-weight:700 !important;
+    letter-spacing:.4px;
+    display:flex;align-items:center;justify-content:center;gap:6px;
+}
+.hero-dot{
+    width:6px;height:6px;border-radius:50%;
+    background:#f97316;
+    box-shadow:0 0 8px #f97316;
+    display:inline-block;
+}
+
+.access-premium{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+    padding:14px 16px !important;
+    border-radius:18px !important;
+    border:1px solid rgba(255,255,255,.35);
+    background:rgba(255,255,255,.92);
+    backdrop-filter:blur(12px);
+    -webkit-backdrop-filter:blur(12px);
+    box-shadow:0 10px 30px rgba(15,23,42,.12);
+    margin-top:-28px !important;
+    position:relative;
+    z-index:2;
+}
+body.dark-mode .access-premium{
+    background:rgba(30,41,59,.92);
+    border-color:rgba(255,255,255,.08);
+}
+.access-premium-left{
+    display:flex;align-items:center;gap:12px;min-width:0;
+}
+.access-avatar{
+    width:46px;height:46px;border-radius:50%;
+    background:linear-gradient(135deg,#0f172a,#1e293b);
+    color:#fff;display:flex;align-items:center;justify-content:center;
+    font-size:20px;flex-shrink:0;
+}
+.access-name{font-size:14px;font-weight:800;color:var(--text);display:block}
+.access-role{font-size:11px;color:var(--muted);font-weight:600}
+.access-auth-btn{
+    width:auto !important;
+    min-width:84px;
+    padding:9px 14px !important;
+    border-radius:12px !important;
+    font-size:12px !important;
+    font-weight:700 !important;
+    white-space:nowrap;
+    border:1.5px solid #0f172a !important;
+    background:transparent !important;
+    color:#0f172a !important;
+    box-shadow:none !important;
+}
+body.dark-mode .access-auth-btn{
+    border-color:#f8fafc !important;
+    color:#f8fafc !important;
+}
+.badge.admin{background:#f97316 !important;color:#fff !important}
+.badge.superadmin{background:#7c3aed !important;color:#fff !important}
+.badge.guest{background:#94a3b8 !important;color:#fff !important}
+
+.stats-premium{gap:10px !important; margin:14px 0 !important;}
+.stats-premium .stat{
+    border:0 !important;
+    border-radius:16px !important;
+    padding:12px 12px !important;
+    box-shadow:0 4px 14px rgba(15,23,42,.06) !important;
+    position:relative;
+    overflow:hidden;
+    min-height:auto !important;
+}
+.stats-premium .stat-row{
+    display:flex;
+    align-items:center;
+    gap:10px;
+}
+.stats-premium .stat-icon{
+    width:40px;height:40px;
+    border-radius:50%;
+    display:flex;align-items:center;justify-content:center;
+    font-size:16px;margin:0 !important;
+    flex-shrink:0;
+    color:#fff;
+}
+.stats-premium .stat-body{min-width:0;flex:1}
+.stats-premium .stat-label{font-size:11px !important;margin:0 !important}
+.stats-premium .stat-value{font-size:20px !important;margin-top:1px !important;line-height:1.15}
+.stat-orange .stat-icon{background:#f97316}
+.stat-purple .stat-icon{background:#7c3aed}
+.stat-green .stat-icon{background:#10b981}
+.stat-navy .stat-icon{background:#0f172a}
+.stat-orange .stat-value{color:#0f172a}
+.stat-purple .stat-value{color:#0f172a}
+.stat-green .stat-value{color:#0f172a}
+.stat-navy .stat-value{color:#0f172a}
+body.dark-mode .stat-orange .stat-value,
+body.dark-mode .stat-purple .stat-value,
+body.dark-mode .stat-green .stat-value,
+body.dark-mode .stat-navy .stat-value{color:#f8fafc}
+.stat-sub{
+    font-size:10px;color:var(--muted);margin-top:2px;font-weight:600;
+}
+
+.excel-premium{
+    border-radius:14px !important;
+    padding:15px !important;
+    font-size:15px !important;
+    background:linear-gradient(135deg,#ea580c 0%,#f97316 50%,#fb923c 100%) !important;
+    box-shadow:0 8px 24px rgba(249,115,22,.4) !important;
+    margin-bottom:6px;
+}
+
+.section-head{
+    display:flex;align-items:center;justify-content:space-between;
+    margin:20px 0 12px;
+}
+.link-all{
+    border:0;background:transparent;color:var(--primary);
+    font-weight:700;font-size:12px;padding:0;cursor:pointer;
+}
+
+/* Bottom nav premium — FAB tengah presisi */
+@media(max-width:699px){
+    .bottom-nav{
+        height:64px !important;
+        bottom:12px !important;
+        width:calc(100% - 24px) !important;
+        left:50% !important;
+        transform:translateX(-50%) !important;
+        border-radius:22px !important;
+        border:0 !important;
+        background:rgba(255,255,255,.96) !important;
+        box-shadow:0 8px 28px rgba(15,23,42,.16) !important;
+        padding:0 6px !important;
+        align-items:center !important;
+        overflow:visible !important;
+    }
+    body.dark-mode .bottom-nav{
+        background:rgba(30,41,59,.96) !important;
+    }
+    .nav-btn{
+        height:64px !important;
+        gap:2px !important;
+        justify-content:center !important;
+        position:relative !important;
+        overflow:visible !important;
+    }
+    .nav-btn:not(.nav-btn-add) span:first-child{
+        width:28px !important;
+        height:28px !important;
+        display:flex !important;
+        align-items:center !important;
+        justify-content:center !important;
+        font-size:18px !important;
+        border-radius:0 !important;
+        background:transparent !important;
+        transform:none !important;
+        box-shadow:none !important;
+        border:none !important;
+    }
+    .nav-btn.active{color:#f97316 !important}
+    .nav-btn:not(.nav-btn-add).active span:first-child{
+        background:transparent !important;
+        transform:none !important;
+    }
+
+    /* Tombol + sejajar dengan menu lain (tidak mengambang) */
+    .nav-btn-add{
+        color:#f97316 !important;
+    }
+    .nav-btn-add span:last-child{
+        display:block !important;
+        font-size:9px !important;
+        font-weight:700 !important;
+        color:inherit !important;
+    }
+    .nav-btn-add span:first-child,
+    .nav-btn-add.active span:first-child,
+    .nav-btn-add:active span:first-child,
+    body.dark-mode .nav-btn-add span:first-child,
+    body.dark-mode .nav-btn-add.active span:first-child{
+        position:static !important;
+        transform:none !important;
+        width:36px !important;
+        height:36px !important;
+        border-radius:50% !important;
+        background:linear-gradient(145deg, #ea580c 0%, #f97316 100%) !important;
+        color:#ffffff !important;
+        font-size:22px !important;
+        font-weight:500 !important;
+        line-height:1 !important;
+        display:flex !important;
+        align-items:center !important;
+        justify-content:center !important;
+        box-shadow:0 3px 10px rgba(249,115,22,.35) !important;
+        border:none !important;
+        margin:0 auto 2px !important;
+        padding:0 !important;
+        opacity:1 !important;
+    }
+    .content{padding-bottom:100px !important}
+    .hero-premium{margin-left:-13px !important;margin-right:-13px !important;}
+}
+
 </style>
 </head>
 
@@ -1190,33 +1435,78 @@ body.dark-mode .nav-btn.active{color:#60a5fa}
 
 <!-- BERANDA -->
 <section id="page-home" class="page active">
-    <div class="hero">
-        <h1>REKAPITULASI<br>PELANGGARAN SISWA/SISWI</h1>
-        <h2>SMP GELORA BEKASI</h2>
-        <p>TAHUN AJARAN 2026-2027</p>
+    <div class="hero hero-premium">
+        <div class="hero-crest">🏫</div>
+        <h1>SMP GELORA BEKASI</h1>
+        <h2>Sistem Pelacakan Pelanggaran Siswa</h2>
+        <p><span class="hero-dot"></span> 2026-2027</p>
     </div>
 
-    <div class="access-card">
-        <div class="access-line">
-            <span>Status Akses</span>
-            <span id="status-badge" class="badge guest">Tamu (Lihat Saja)</span>
+    <div class="access-card access-premium">
+        <div class="access-premium-left">
+            <div class="access-avatar">👤</div>
+            <div>
+                <div class="access-line" style="margin-bottom:2px;">
+                    <span id="status-badge" class="badge guest">Tamu</span>
+                </div>
+                <div id="user-info-text" style="display:none;">
+                    <strong id="logged-username" class="access-name">-</strong>
+                </div>
+                <div id="guest-label" class="access-role">Belum login</div>
+            </div>
         </div>
-        <div id="user-info-text" style="font-size: 12px; color: var(--muted); margin-bottom: 8px; display: none;">
-            Login sebagai: <strong id="logged-username" style="color: var(--primary);">-</strong>
+        <button id="btn-auth-home" class="access-auth-btn" onclick="toggleAdminAuth()">Login</button>
+    </div>
+
+    <div class="stats stats-premium">
+        <div class="stat stat-orange">
+            <div class="stat-row">
+                <div class="stat-icon">📋</div>
+                <div class="stat-body">
+                    <div class="stat-label">Total Kasus</div>
+                    <div class="stat-value" id="stat-total">...</div>
+                    <div class="stat-sub">Semua catatan</div>
+                </div>
+            </div>
         </div>
-        <button id="btn-auth-home" class="primary-btn" onclick="toggleAdminAuth()">🔑 Login Account</button>
+        <div class="stat stat-purple">
+            <div class="stat-row">
+                <div class="stat-icon">⚠️</div>
+                <div class="stat-body">
+                    <div class="stat-label">Jenis</div>
+                    <div class="stat-value" id="stat-types">...</div>
+                    <div class="stat-sub">Kategori</div>
+                </div>
+            </div>
+        </div>
+        <div class="stat stat-green">
+            <div class="stat-row">
+                <div class="stat-icon">✅</div>
+                <div class="stat-body">
+                    <div class="stat-label">Sudah Ditindak</div>
+                    <div class="stat-value" id="stat-acted">...</div>
+                    <div class="stat-sub">Tindak lanjut</div>
+                </div>
+            </div>
+        </div>
+        <div class="stat stat-navy">
+            <div class="stat-row">
+                <div class="stat-icon">📅</div>
+                <div class="stat-body">
+                    <div class="stat-label">Tahun Ajaran</div>
+                    <div class="stat-value" style="font-size:14px">2026-2027</div>
+                    <div class="stat-sub">Aktif</div>
+                </div>
+            </div>
+        </div>
     </div>
 
-    <div class="stats">
-        <div class="stat"><div class="stat-icon">📋</div><div class="stat-label">Total Kasus</div><div class="stat-value" id="stat-total">...</div></div>
-        <div class="stat"><div class="stat-icon">⚠️</div><div class="stat-label">Jenis Pelanggaran</div><div class="stat-value" id="stat-types">...</div></div>
-        <div class="stat"><div class="stat-icon">✅</div><div class="stat-label">Sudah Ditindak</div><div class="stat-value" id="stat-acted">...</div></div>
-        <div class="stat"><div class="stat-icon">📅</div><div class="stat-label">Tahun Ajaran</div><div class="stat-value" style="font-size:16px">2026-2027</div></div>
+    <button class="excel-btn excel-premium" onclick="exportToExcel()">📊 Export ke Excel</button>
+
+    <div class="section-head">
+        <h3 class="section-title" style="margin:0">Pelanggaran Terbaru</h3>
+        <button type="button" class="link-all" onclick="showPage('data')">Lihat Semua ›</button>
     </div>
-
-    <button class="excel-btn" onclick="exportToExcel()">📗 Export ke Excel</button>
-
-    <h3 class="section-title">Pelanggaran Terbaru</h3>
     <div id="recent-list" class="record-list"></div>
 </section>
 
@@ -1307,15 +1597,7 @@ body.dark-mode .nav-btn.active{color:#60a5fa}
                 <input type="date" id="chart-to" onchange="updateChart(records)" style="width:100%; padding:9px; border:1px solid #ccd6e0; border-radius:9px;">
             </div>
         </div>
-        <div class="form-group" style="margin-bottom:12px;">
-            <label for="chart-topn" style="font-size:12px;">Tampilkan</label>
-            <select id="chart-topn" onchange="updateChart(records)" style="width:100%; padding:9px; border:1px solid #ccd6e0; border-radius:9px;">
-                <option value="0">Semua data</option>
-                <option value="5">Top 5 saja</option>
-                <option value="10" selected>Top 10 saja</option>
-                <option value="15">Top 15 saja</option>
-            </select>
-        </div>
+        <button type="button" class="secondary-btn" style="margin-bottom:12px; font-size:12px;" onclick="showCategoryDebug()">🔍 Cek Kategori (Debug)</button>
         <div class="chart-box"><canvas id="pelanggaranChart"></canvas></div>
     </div>
 </section>
@@ -1342,9 +1624,9 @@ body.dark-mode .nav-btn.active{color:#60a5fa}
 <nav class="bottom-nav">
     <button class="nav-btn active" data-page="home" onclick="showPage('home')"><span>🏠</span><span>Beranda</span></button>
     <button class="nav-btn" data-page="data" onclick="showPage('data')"><span>☷</span><span>Data</span></button>
+    <button class="nav-btn nav-btn-add" data-page="form" onclick="openForm()" aria-label="Tambah"><span>+</span><span>Tambah</span></button>
     <button class="nav-btn" data-page="chart" onclick="showPage('chart')"><span>📊</span><span>Grafik</span></button>
-    <button class="nav-btn" data-page="report" onclick="showPage('report')"><span>🚨</span><span>Report 3x</span></button>
-    <button class="nav-btn" data-page="form" onclick="openForm()"><span>➕</span><span>Tambah</span></button>
+    <button class="nav-btn" data-page="report" onclick="showPage('report')"><span>🚨</span><span>Report</span></button>
 </nav>
 </div>
 
@@ -1597,9 +1879,9 @@ function showAbout() {
     Swal.fire({
         title: 'SMP Gelora Bekasi',
         html: '<p>Sistem Rekapitulasi Pelanggaran Siswa v2.0</p>' +
-              '<p style="margin-top: 10px; font-weight: bold; color: #1261a0;">Licensed By: Restu Putra Perdana</p>',
+              '<p style="margin-top: 10px; font-weight: bold; color: #f97316;">Licensed By: Restu Putra Perdana</p>',
         icon: 'info',
-        confirmButtonColor: '#1261a0'
+        confirmButtonColor: '#f97316'
     });
 }
 
@@ -1626,7 +1908,7 @@ function openForm(){
             icon: 'warning',
             title: 'Akses Terbatas',
             text: 'Fitur tambah data hanya dapat digunakan oleh Admin.',
-            confirmButtonColor: '#1261a0'
+            confirmButtonColor: '#f97316'
         }).then(() => openLogin());
         return;
     }
@@ -1656,7 +1938,7 @@ async function loginUser(){
             icon: 'warning',
             title: 'Perhatian',
             text: 'Username dan Password wajib diisi!',
-            confirmButtonColor: '#1261a0'
+            confirmButtonColor: '#f97316'
         });
     }
 
@@ -1734,36 +2016,37 @@ function updateAdminUI(){
     const save = document.getElementById('btn-save');
     const notice = document.getElementById('guest-notice');
 
+    const guestLabel = document.getElementById('guest-label');
+
     if(currentUser){
-        userInfoText.style.display = 'block';
-        loggedUsername.textContent = `${currentUser.nama} (@${currentUser.username})`;
-        authBtn.textContent = '🔒 Logout';
+        if(userInfoText) userInfoText.style.display = 'block';
+        if(guestLabel) guestLabel.style.display = 'none';
+        if(loggedUsername) loggedUsername.textContent = `${currentUser.nama}`;
+        if(authBtn) authBtn.textContent = 'Keluar';
         inputs.forEach(x => x.disabled = false);
-        save.disabled = false;
-        notice.style.display = 'none';
+        if(save) save.disabled = false;
+        if(notice) notice.style.display = 'none';
 
         // Admin & Super Admin boleh kelola klasifikasi
         if(manageCategoryBtn) manageCategoryBtn.style.display = 'flex';
 
         if(currentUser.role === 'superadmin'){
-            badge.textContent = '👑 Super Admin';
-            badge.className = 'badge superadmin';
+            if(badge){ badge.textContent = 'Super Admin'; badge.className = 'badge superadmin'; }
             if(manageUserBtn) manageUserBtn.style.display = 'flex';
             if(auditLogBtn) auditLogBtn.style.display = 'flex';
         } else {
-            badge.textContent = '🛡️ Admin';
-            badge.className = 'badge admin';
+            if(badge){ badge.textContent = 'Admin'; badge.className = 'badge admin'; }
             if(manageUserBtn) manageUserBtn.style.display = 'none';
             if(auditLogBtn) auditLogBtn.style.display = 'none';
         }
     } else {
-        userInfoText.style.display = 'none';
-        badge.textContent = 'Tamu (Lihat Saja)';
-        badge.className = 'badge guest';
-        authBtn.textContent = '🔑 Login Akun';
+        if(userInfoText) userInfoText.style.display = 'none';
+        if(guestLabel) guestLabel.style.display = 'block';
+        if(badge){ badge.textContent = 'Tamu'; badge.className = 'badge guest'; }
+        if(authBtn) authBtn.textContent = 'Login';
         inputs.forEach(x => x.disabled = true);
-        save.disabled = true;
-        notice.style.display = 'block';
+        if(save) save.disabled = true;
+        if(notice) notice.style.display = 'block';
         if(manageUserBtn) manageUserBtn.style.display = 'none';
         if(auditLogBtn) auditLogBtn.style.display = 'none';
         if(manageCategoryBtn) manageCategoryBtn.style.display = 'none';
@@ -1848,7 +2131,7 @@ async function loadAuditLogs() {
             dateStyle: 'short', timeStyle: 'short'
         });
         
-        let color = '#1261a0';
+        let color = '#f97316';
         if (l.aksi === 'TAMBAH') color = '#21a366';
         if (l.aksi === 'EDIT') color = '#f5b400';
         if (l.aksi === 'HAPUS') color = '#e53935';
@@ -1895,7 +2178,7 @@ async function tambahUserBaru(){
             icon: 'warning',
             title: 'Gagal',
             text: 'Semua field user baru wajib diisi!',
-            confirmButtonColor: '#1261a0'
+            confirmButtonColor: '#f97316'
         });
     }
 
@@ -1972,7 +2255,7 @@ async function openCategoryModal(){
             icon: 'warning',
             title: 'Akses Admin',
             text: 'Login terlebih dahulu untuk mengelola klasifikasi.',
-            confirmButtonColor: '#1261a0'
+            confirmButtonColor: '#f97316'
         });
     }
     document.getElementById('category-modal').classList.add('show');
@@ -2088,7 +2371,7 @@ async function simpanKategori(){
     const rawKeywords = document.getElementById('cat-keywords').value.trim();
 
     if(!name){
-        return Swal.fire({ icon:'warning', title:'Perhatian', text:'Nama kategori wajib diisi.', confirmButtonColor:'#1261a0' });
+        return Swal.fire({ icon:'warning', title:'Perhatian', text:'Nama kategori wajib diisi.', confirmButtonColor:'#f97316' });
     }
 
     // Pecah keyword by koma, bersihkan, unique
@@ -2099,7 +2382,7 @@ async function simpanKategori(){
     )];
 
     if(!keywords.length){
-        return Swal.fire({ icon:'warning', title:'Perhatian', text:'Minimal satu keyword wajib diisi.', confirmButtonColor:'#1261a0' });
+        return Swal.fire({ icon:'warning', title:'Perhatian', text:'Minimal satu keyword wajib diisi.', confirmButtonColor:'#f97316' });
     }
 
     try{
@@ -2182,9 +2465,11 @@ function updateStats(){
 
 /** Deteksi kategori pelanggaran berdasarkan keyword dinamis dari Supabase */
 function detectViolationCategories(text){
+    // Normalisasi agresif: hapus tanda baca, kurung, angka jam, spasi dobel
     const t = String(text || '')
         .toLowerCase()
-        .replace(/[.,;:\/\\|+&]/g, ' ')
+        .replace(/[.,;:\/\\|+&()[\]{}'"`~!@#$%^*=?<>]/g, ' ')
+        .replace(/\d{1,2}\s*[:.]\s*\d{2}/g, ' ')
         .replace(/\s+/g, ' ')
         .trim();
 
@@ -2192,17 +2477,107 @@ function detectViolationCategories(text){
 
     (violationCategories || []).forEach(cat => {
         const keywords = Array.isArray(cat.keywords) ? cat.keywords : [];
-        const hit = keywords.some(kw => {
+        let hit = keywords.some(kw => {
             const k = String(kw || '').toLowerCase().trim();
             if(!k) return false;
             if(k.includes(' ')) return t.includes(k);
-            return new RegExp('\\b' + k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b').test(t);
+            const escaped = k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            if(k.length <= 4){
+                return new RegExp('\\b' + escaped + '\\b').test(t);
+            }
+            return new RegExp('\\b' + escaped + '\\b').test(t) || t.includes(k);
         });
+
+        // Fallback: kategori yang namanya soal keterlambatan
+        if(!hit && /terlambat|telat/i.test(String(cat.name || ''))){
+            hit = /terlambat|keterlambatan|\btelat\b|ter\s*lambat/i.test(t);
+        }
+
         if(hit) matched.push(cat.name);
     });
 
     if(matched.length === 0) matched.push('Lainnya');
     return matched;
+}
+
+/** Debug di console: ketik debugKategoriJenis('2026-09-22','2026-09-28') */
+function debugKategoriJenis(fromDate, toDate){
+    let data = records || [];
+    if(fromDate || toDate){
+        data = data.filter(item => {
+            const tgl = item.tanggal ? String(item.tanggal).substring(0, 10) : '';
+            if(!tgl) return false;
+            if(fromDate && tgl < fromDate) return false;
+            if(toDate && tgl > toDate) return false;
+            return true;
+        });
+    }
+    console.log('=== DEBUG KATEGORI JENIS ===');
+    console.log('Total data difilter:', data.length);
+    data.forEach((item, i) => {
+        const cats = detectViolationCategories(item.pelanggaran || '');
+        console.log(`${i+1}. [${item.tanggal}] ${item.nama} | "${item.pelanggaran}" →`, cats);
+    });
+    return data.length;
+}
+
+function showCategoryDebug(){
+    const fromDate = document.getElementById('chart-from')?.value || '';
+    const toDate = document.getElementById('chart-to')?.value || '';
+
+    let data = records || [];
+    if(fromDate || toDate){
+        data = data.filter(item => {
+            const tgl = item.tanggal ? String(item.tanggal).substring(0, 10) : '';
+            if(!tgl) return false;
+            if(fromDate && tgl < fromDate) return false;
+            if(toDate && tgl > toDate) return false;
+            return true;
+        });
+    }
+
+    if(!data.length){
+        return Swal.fire({
+            icon: 'info',
+            title: 'Tidak ada data',
+            text: 'Tidak ada pelanggaran di rentang tanggal ini.',
+            confirmButtonColor: '#f97316'
+        });
+    }
+
+    // Hitung ringkasan kategori
+    const summary = {};
+    const rows = data.map((item, i) => {
+        const cats = detectViolationCategories(item.pelanggaran || '');
+        cats.forEach(c => { summary[c] = (summary[c] || 0) + 1; });
+        const catLabel = cats.join(', ');
+        const isLainnya = cats.length === 1 && cats[0] === 'Lainnya';
+        const noTerlambat = !cats.some(c => /terlambat|telat/i.test(c));
+        const flag = isLainnya ? '⚠️ ' : (noTerlambat && /lambat|telat/i.test(item.pelanggaran || '') ? '❓ ' : '');
+        return `<div style="text-align:left; padding:8px 0; border-bottom:1px solid #eee; font-size:12px; line-height:1.45;">
+            <strong>${i+1}. ${escapeHtml(item.nama || '-')}</strong>
+            <span style="color:#64748b;"> · ${escapeHtml(formatTanggalIndonesia(item.tanggal) || '-')}</span><br>
+            <span style="color:#334155;">"${escapeHtml(item.pelanggaran || '-')}"</span><br>
+            <span style="color:${isLainnya ? '#ef4444' : '#f97316'}; font-weight:700;">${flag}→ ${escapeHtml(catLabel)}</span>
+        </div>`;
+    }).join('');
+
+    const summaryHtml = Object.entries(summary)
+        .sort((a,b) => b[1] - a[1])
+        .map(([k,v]) => `<span style="display:inline-block; margin:3px 4px; padding:4px 8px; border-radius:999px; background:#fff7ed; color:#c2410c; font-size:11px; font-weight:700;">${escapeHtml(k)}: ${v}</span>`)
+        .join('');
+
+    Swal.fire({
+        title: `Cek Kategori (${data.length} data)`,
+        html: `<div style="margin-bottom:10px;">${summaryHtml}</div>
+               <div style="max-height:55vh; overflow-y:auto; text-align:left;">${rows}</div>
+               <p style="font-size:11px; color:#64748b; margin-top:10px; text-align:left;">
+               ⚠️ = masuk Lainnya &nbsp;|&nbsp; ❓ = teks seperti terlambat tapi kategori tidak Terlambat
+               </p>`,
+        width: Math.min(480, window.innerWidth - 24),
+        confirmButtonText: 'Tutup',
+        confirmButtonColor: '#f97316'
+    });
 }
 
 function getGroups(data, filterType){
@@ -2405,14 +2780,7 @@ function updateChart(data = records) {
         myChart = null;
     }
 
-    let grouped = getGroups(filtered, filterType);
-
-    // Top N (hanya untuk jenis & kelas; tren minggu/bulan & pie tingkat tetap full)
-    const topNEl = document.getElementById('chart-topn');
-    const topN = topNEl ? parseInt(topNEl.value, 10) || 0 : 0;
-    if(topN > 0 && (filterType === 'jenis' || filterType === 'kelas')){
-        grouped = grouped.slice(0, topN);
-    }
+    const grouped = getGroups(filtered, filterType);
 
     const labels = grouped.map(item => item[0]);
     const values = grouped.map(item => item[1]);
@@ -2879,7 +3247,7 @@ function statusBadgeHtml(status){
 
 async function updateFollowUp(nama, kelas){
     if(!currentUser){
-        return Swal.fire({ icon:'warning', title:'Akses Admin', text:'Login terlebih dahulu untuk memperbarui status tindak lanjut.', confirmButtonColor:'#1261a0' });
+        return Swal.fire({ icon:'warning', title:'Akses Admin', text:'Login terlebih dahulu untuk memperbarui status tindak lanjut.', confirmButtonColor:'#f97316' });
     }
     const key = getStudentKey(nama, kelas);
     const current = getFollowUp(key);
@@ -3114,15 +3482,36 @@ async function loadData(){
     }
 }
 
-async function kirimWhatsAppManual(namaSiswa, kelasSiswa) {
+/** Ambil semua pelanggaran siswa berdasarkan NAMA LENGKAP saja (konsisten dengan Report 3x) */
+function getRecordsByStudentName(namaSiswa){
     const cleanName = normalizeName(namaSiswa);
-    const cleanClass = normalizeName(kelasSiswa);
-    const listSiswa = records.filter(r => normalizeName(r.nama) === cleanName && normalizeName(r.kelas) === cleanClass);
+    return records
+        .filter(r => normalizeName(r.nama) === cleanName)
+        .sort((a,b) =>
+            String(a.tanggal||'').localeCompare(String(b.tanggal||'')) ||
+            Number(a.id||0) - Number(b.id||0)
+        );
+}
+
+/** Kelas terbaru dari riwayat siswa (nama saja) */
+function getLatestClassByName(namaSiswa, fallbackKelas){
+    const list = getRecordsByStudentName(namaSiswa);
+    if(!list.length) return fallbackKelas || '-';
+    const latest = [...list].sort((a,b) =>
+        String(b.tanggal||'').localeCompare(String(a.tanggal||'')) ||
+        Number(b.id||0) - Number(a.id||0)
+    )[0];
+    return String(latest?.kelas || fallbackKelas || '-').trim() || '-';
+}
+
+async function kirimWhatsAppManual(namaSiswa, kelasSiswa) {
+    const listSiswa = getRecordsByStudentName(namaSiswa);
     const totalCount = listSiswa.length;
+    const kelasTampil = getLatestClassByName(namaSiswa, kelasSiswa);
 
     const result = await Swal.fire({
         title: '📱 Beritahu Wali Kelas/Murid',
-        html: `<p>Kirim pemberitahuan catatan pelanggaran siswa <strong>${escapeHtml(namaSiswa)}</strong> (${escapeHtml(kelasSiswa)}) ke WhatsApp.</p>`,
+        html: `<p>Kirim pemberitahuan catatan pelanggaran siswa <strong>${escapeHtml(namaSiswa)}</strong> (${escapeHtml(kelasTampil)}) ke WhatsApp.</p>`,
         icon: 'question',
         input: 'text',
         inputLabel: 'Masukkan Nomor WA Tujuan:',
@@ -3139,22 +3528,21 @@ async function kirimWhatsAppManual(namaSiswa, kelasSiswa) {
         if (phone.startsWith('0')) phone = '62' + phone.slice(1);
 
         const daftarPelanggaran = listSiswa.map((item, idx) => `${idx + 1}. ${item.pelanggaran} (${formatTanggalIndonesia(item.tanggal)})`).join('\n');
-        const message = `Yth. Bapak/Ibu Wali Murid / Wali Kelas dari *${namaSiswa}* (${kelasSiswa}).\n\nBerikut menginformasikan catatan pelanggaran siswa di SMP Gelora Bekasi:\n*Total Pelanggaran:* ${totalCount} kali\n\nRiwayat Pelanggaran:\n${daftarPelanggaran}\n\nMohon untuk dilakukan pembinaan bersama.\n\nTerima kasih.\n*SMP Gelora Bekasi*`;
+        const message = `Yth. Bapak/Ibu Wali Murid / Wali Kelas dari *${namaSiswa}* (${kelasTampil}).\n\nBerikut menginformasikan catatan pelanggaran siswa di SMP Gelora Bekasi:\n*Total Pelanggaran:* ${totalCount} kali\n\nRiwayat Pelanggaran:\n${daftarPelanggaran}\n\nMohon untuk dilakukan pembinaan bersama.\n\nTerima kasih.\n*SMP Gelora Bekasi*`;
 
         window.open(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`, '_blank');
     }
 }
 
 async function checkPelanggaranCountAndPrompt(namaSiswa, kelasSiswa) {
-    const cleanName = normalizeName(namaSiswa);
-    const cleanClass = normalizeName(kelasSiswa);
-    const listSiswa = records.filter(r => normalizeName(r.nama) === cleanName && normalizeName(r.kelas) === cleanClass);
+    const listSiswa = getRecordsByStudentName(namaSiswa);
     const totalCount = listSiswa.length;
+    const kelasTampil = getLatestClassByName(namaSiswa, kelasSiswa);
 
     if (totalCount >= 3) {
         const result = await Swal.fire({
             title: '⚠️ PERINGATAN PELANGGARAN 3X',
-            html: `<p>Siswa <strong>${escapeHtml(namaSiswa)}</strong> (${escapeHtml(kelasSiswa)}) telah mencapai <strong>${totalCount}x pelanggaran</strong>!</p>`,
+            html: `<p>Siswa <strong>${escapeHtml(namaSiswa)}</strong> (${escapeHtml(kelasTampil)}) telah mencapai <strong>${totalCount}x pelanggaran</strong>!</p>`,
             icon: 'warning',
             input: 'text',
             inputLabel: 'Masukkan Nomor WhatsApp Ortu/Wali:',
@@ -3171,7 +3559,7 @@ async function checkPelanggaranCountAndPrompt(namaSiswa, kelasSiswa) {
             if (phone.startsWith('0')) phone = '62' + phone.slice(1);
 
             const daftarPelanggaran = listSiswa.map((item, idx) => `${idx + 1}. ${item.pelanggaran} (${formatTanggalIndonesia(item.tanggal)})`).join('\n');
-            const message = `Yth. Bapak/Ibu Orang Tua/Wali dari *${namaSiswa}* (${kelasSiswa}).\n\nBermaksud menginformasikan bahwa siswa tersebut telah mencapai *${totalCount} kali pelanggaran* di SMP Gelora Bekasi.\n\nRiwayat Pelanggaran:\n${daftarPelanggaran}\n\nSehubungan dengan hal tersebut, kami mengundang Bapak/Ibu hadir ke sekolah untuk bimbingan konseling.\n\nTerima kasih.\n*SMP Gelora Bekasi*`;
+            const message = `Yth. Bapak/Ibu Orang Tua/Wali dari *${namaSiswa}* (${kelasTampil}).\n\nBermaksud menginformasikan bahwa siswa tersebut telah mencapai *${totalCount} kali pelanggaran* di SMP Gelora Bekasi.\n\nRiwayat Pelanggaran:\n${daftarPelanggaran}\n\nSehubungan dengan hal tersebut, kami mengundang Bapak/Ibu hadir ke sekolah untuk bimbingan konseling.\n\nTerima kasih.\n*SMP Gelora Bekasi*`;
 
             window.open(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`, '_blank');
         }
@@ -3199,7 +3587,7 @@ async function simpanData(){
             icon: 'warning',
             title: 'Form Inkomplit',
             text: 'Nama, Kelas, dan Pelanggaran wajib diisi!',
-            confirmButtonColor: '#1261a0'
+            confirmButtonColor: '#f97316'
         });
     }
 
@@ -3291,10 +3679,10 @@ async function simpanData(){
 }
 
 function cetakSuratPanggilan(namaSiswa, kelasSiswa) {
-    const cleanName = normalizeName(namaSiswa);
-    const cleanClass = normalizeName(kelasSiswa);
-    const listSiswa = records.filter(r => normalizeName(r.nama) === cleanName && normalizeName(r.kelas) === cleanClass);
+    // Group by nama lengkap saja (sama dengan Report 3x)
+    const listSiswa = getRecordsByStudentName(namaSiswa);
     const totalCount = listSiswa.length;
+    const kelasTampil = getLatestClassByName(namaSiswa, kelasSiswa);
     const tgl = new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
 
     let tabelPelanggaranHtml = listSiswa.map((item, idx) => `
@@ -3365,7 +3753,7 @@ function cetakSuratPanggilan(namaSiswa, kelasSiswa) {
                 
                 <table class="table-data" style="margin-top: 6px;">
                     <tr><td width="130"><strong>Nama Siswa</strong></td><td width="10">:</td><td><strong>${escapeHtml(namaSiswa)}</strong></td></tr>
-                    <tr><td><strong>Kelas</strong></td><td>:</td><td>${escapeHtml(kelasSiswa)}</td></tr>
+                    <tr><td><strong>Kelas</strong></td><td>:</td><td>${escapeHtml(kelasTampil)}</td></tr>
                 </table>
 
                 <p style="margin-top: 6px;"><strong>Rincian Riwayat Pelanggaran (${totalCount}x):</strong></p>
@@ -3516,7 +3904,7 @@ async function exportThreeStrikeReport(){
             icon:'info',
             title:'Report Kosong',
             text:'Belum ada siswa yang mencapai 3x pelanggaran.',
-            confirmButtonColor:'#1261a0'
+            confirmButtonColor:'#f97316'
         });
     }
 
@@ -3900,7 +4288,7 @@ async function exportToExcel(){
         icon: 'info',
         title: 'Data Kosong',
         text: 'Tidak ada data untuk diexport!',
-        confirmButtonColor: '#1261a0'
+        confirmButtonColor: '#f97316'
     });
 
     const today = getLocalDateISO();
@@ -3921,7 +4309,7 @@ async function exportToExcel(){
         showCancelButton: true,
         confirmButtonText: '📥 Export Sekarang',
         cancelButtonText: 'Batal',
-        confirmButtonColor: '#1677b7',
+        confirmButtonColor: '#f97316',
         preConfirm: () => {
             const tglAwal = document.getElementById('swal-export-from').value;
             const tglAkhir = document.getElementById('swal-export-to').value;
@@ -3953,7 +4341,7 @@ async function exportToExcel(){
             icon: 'warning',
             title: 'Data Tidak Ditemukan',
             text: `Tidak ada data pelanggaran dari rentang tanggal ${formValues.tglAwal} s/d ${formValues.tglAkhir}.`,
-            confirmButtonColor: '#1261a0'
+            confirmButtonColor: '#f97316'
         });
     }
 
