@@ -337,11 +337,9 @@ function getDefaultTahunAjaranSemester(date = new Date()) {
     const month = date.getMonth() + 1; // 1-12
     let tahunAjaran, semester;
     if (month >= 7) {
-        // Juli - Desember → Ganjil
         tahunAjaran = `${year}/${year + 1}`;
         semester = 'Ganjil';
     } else {
-        // Januari - Juni → Genap
         tahunAjaran = `${year - 1}/${year}`;
         semester = 'Genap';
     }
@@ -3422,16 +3420,23 @@ function __loadScript(src) {
         const existing = document.querySelector('script[data-smp-src="' + src + '"]');
         if (existing) {
             if (existing.dataset.loaded === '1') return resolve();
-            existing.addEventListener('load', () => resolve());
-            existing.addEventListener('error', () => reject(new Error('Gagal memuat ' + src)));
-            return;
+            if (existing.dataset.failed === '1') {
+                existing.remove();
+            } else {
+                existing.addEventListener('load', () => resolve());
+                existing.addEventListener('error', () => reject(new Error('Gagal memuat ' + src)));
+                return;
+            }
         }
         const el = document.createElement('script');
         el.src = src;
         el.async = true;
         el.dataset.smpSrc = src;
         el.onload = () => { el.dataset.loaded = '1'; resolve(); };
-        el.onerror = () => reject(new Error('Gagal memuat skrip: ' + src));
+        el.onerror = () => {
+            el.dataset.failed = '1';
+            reject(new Error('Gagal memuat skrip: ' + src));
+        };
         document.head.appendChild(el);
     });
 }
@@ -3444,22 +3449,60 @@ function __resolveExportScriptUrl() {
     return 'smpgelora-export.js';
 }
 
+async function __loadScriptWithFallback(urls, checkFn, label) {
+    let lastErr = null;
+    for (const url of urls) {
+        try {
+            document.querySelectorAll('script[data-smp-src="' + url + '"]').forEach(el => {
+                if (el.dataset.failed === '1' || (el.dataset.loaded === '1' && !checkFn())) el.remove();
+            });
+            if (!checkFn()) {
+                await __loadScript(url);
+            }
+            await new Promise(r => setTimeout(r, 30));
+            if (checkFn()) return;
+            lastErr = new Error(label + ' tidak tersedia setelah memuat: ' + url);
+        } catch (e) {
+            lastErr = e;
+        }
+    }
+    throw lastErr || new Error('Gagal memuat ' + label);
+}
+
 function ensureExportModule() {
-    if (window.__smpgeloraExport && typeof window.__smpgeloraExport.exportToExcel === 'function') {
+    if (
+        window.__smpgeloraExport &&
+        typeof window.__smpgeloraExport.exportToExcel === 'function' &&
+        typeof window.ExcelJS !== 'undefined'
+    ) {
         return Promise.resolve(window.__smpgeloraExport);
     }
     if (__exportLoadPromise) return __exportLoadPromise;
 
     __exportLoadPromise = (async () => {
-        if (typeof ExcelJS === 'undefined') {
-            await __loadScript('https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js');
+        await __loadScriptWithFallback([
+            'https://cdn.jsdelivr.net/npm/exceljs@4.3.0/dist/exceljs.min.js',
+            'https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js',
+            'https://unpkg.com/exceljs@4.3.0/dist/exceljs.min.js'
+        ], () => typeof window.ExcelJS !== 'undefined', 'ExcelJS');
+
+        await __loadScriptWithFallback([
+            'https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js',
+            'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js',
+            'https://unpkg.com/jszip@3.10.1/dist/jszip.min.js'
+        ], () => typeof window.JSZip !== 'undefined', 'JSZip');
+
+        if (typeof window.ExcelJS === 'undefined') {
+            throw new Error('ExcelJS gagal dimuat. Cek koneksi internet / CDN.');
         }
-        if (typeof JSZip === 'undefined') {
-            await __loadScript('https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js');
-        }
-        await __loadScript(__resolveExportScriptUrl());
+
+        const exportUrl = __resolveExportScriptUrl();
+        document.querySelectorAll('script[data-smp-src="' + exportUrl + '"]').forEach(el => el.remove());
+        window.__smpgeloraExport = null;
+        await __loadScript(exportUrl);
+
         if (!window.__smpgeloraExport || typeof window.__smpgeloraExport.exportToExcel !== 'function') {
-            throw new Error('Modul export gagal diinisialisasi.');
+            throw new Error('Modul export gagal diinisialisasi. Pastikan smpgelora-export.js ada di folder yang sama.');
         }
         return window.__smpgeloraExport;
     })().catch(err => {
@@ -3469,6 +3512,7 @@ function ensureExportModule() {
 
     return __exportLoadPromise;
 }
+
 
 async function exportToExcel() {
     try {
@@ -3516,7 +3560,6 @@ async function exportThreeStrikeReport() {
 
 
 /* ========== BOOTSTRAP APP ========== */
-// Pulihkan halaman terakhir + muat data. Tanpa ini loading screen stuck selamanya.
 (function bootstrapApp(){
     try {
         const savedPageOnRefresh = localStorage.getItem('smpgelora_current_page') || 'home';
