@@ -1278,12 +1278,13 @@ function detectViolationCategories(text){
         let hit = keywords.some(kw => {
             const k = String(kw || '').toLowerCase().trim();
             if(!k) return false;
+            // Frasa multi-kata: harus muncul utuh
             if(k.includes(' ')) return t.includes(k);
+            // Kata tunggal: HANYA word-boundary.
+            // Jangan pakai t.includes(k) — menyebabkan false positive
+            // contoh: keyword "ribut" ikut kena di kata "atribut".
             const escaped = k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-            if(k.length <= 4){
-                return new RegExp('\\b' + escaped + '\\b').test(t);
-            }
-            return new RegExp('\\b' + escaped + '\\b').test(t) || t.includes(k);
+            return new RegExp('\\b' + escaped + '\\b').test(t);
         });
 
         // Fallback: kategori yang namanya soal keterlambatan
