@@ -5,8 +5,13 @@ const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 let currentUser = null;
 try {
     currentUser = JSON.parse(localStorage.getItem('user_session')) || null;
+    if (currentUser) {
+        const j = String(currentUser.jenjang || '').toLowerCase().trim();
+        currentUser.jenjang = (j === 'smp' || j === 'smk' || j === 'all') ? j : 'all';
+    }
 } catch (e) {
     localStorage.removeItem('user_session');
+    currentUser = null;
 }
 let records = [];
 let usersList = [];
@@ -42,7 +47,256 @@ let currentPage = 1;
 const rowsPerPage = 10;
 let filteredRecordsCache = [];
 
+// Mode jenjang: all | smp | smk (disimpan di localStorage)
+let schoolMode = 'all';
+try {
+    const savedMode = localStorage.getItem('smpgelora_school_mode');
+    if (savedMode === 'all' || savedMode === 'smp' || savedMode === 'smk') schoolMode = savedMode;
+} catch (e) {}
+
+function isSMKRecord(item) {
+    return !!(item && String(item.jurusan || '').trim());
+}
+function isSMPRecord(item) {
+    return !isSMKRecord(item);
+}
+function filterBySchoolMode(list) {
+    const arr = Array.isArray(list) ? list : [];
+    if (schoolMode === 'smp') return arr.filter(isSMPRecord);
+    if (schoolMode === 'smk') return arr.filter(isSMKRecord);
+    return arr;
+}
+function getSchoolModeLabel() {
+    if (schoolMode === 'smp') return 'SMP';
+    if (schoolMode === 'smk') return 'SMK';
+    return 'SMP - SMK';
+}
+function setSchoolMode(mode) {
+    if (mode !== 'all' && mode !== 'smp' && mode !== 'smk') mode = 'all';
+
+    // Admin SMP/SMK tidak boleh ganti toggle — mode terkunci ke jenjang akun
+    if (!canUseSchoolToggle()) {
+        const locked = normalizeJenjang(currentUser.jenjang);
+        mode = locked;
+    }
+
+    schoolMode = mode;
+    try { localStorage.setItem('smpgelora_school_mode', mode); } catch (e) {}
+
+    document.querySelectorAll('.school-mode-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.mode === mode);
+    });
+
+    // Sinkron UI khusus SMP vs SMK (form, tabel, grafik, placeholder)
+    syncSchoolModeUI();
+    syncToggleVisibility();
+
+    // Refresh semua tampilan yang terpengaruh
+    filterData();
+    renderRecent();
+    updateStats();
+    // Super Admin: form mengikuti toggle; admin SMP/SMK: form tetap terkunci role
+    if (document.getElementById('page-form')?.classList.contains('active')) {
+        syncFormSchoolUI();
+    }
+    if (document.getElementById('page-chart')?.classList.contains('active')) {
+        updateChart(records);
+    }
+    if (document.getElementById('page-report')?.classList.contains('active')) {
+        renderThreeStrikeReport();
+    }
+}
+
+/** Tampilkan opsi "Per Jurusan" hanya saat mode SMK */
+function syncChartJurusanOption() {
+    const filterEl = document.getElementById('chart-filter');
+    if (!filterEl) return;
+    const jurusanOpt = filterEl.querySelector('option[value="jurusan"]');
+    if (!jurusanOpt) return;
+
+    if (schoolMode === 'smk') {
+        jurusanOpt.hidden = false;
+        jurusanOpt.disabled = false;
+    } else {
+        // SMP / Semua → sembunyikan
+        jurusanOpt.hidden = true;
+        jurusanOpt.disabled = true;
+        if (filterEl.value === 'jurusan') {
+            filterEl.value = 'jenis';
+        }
+    }
+}
+
+/**
+ * Sinkronkan UI berdasarkan schoolMode:
+ * - SMP  → sembunyikan form/kolom jurusan
+ * - SMK  → tampilkan form/kolom jurusan (wajib)
+ * - Semua → tampilkan jurusan (opsional)
+ */
+function syncSchoolModeUI() {
+    syncChartJurusanOption();
+
+    const showJurusan = schoolMode !== 'smp';
+    const formGroupJurusan = document.getElementById('form-group-jurusan');
+    const elJurusan = document.getElementById('jurusan');
+    const thJurusan = document.getElementById('th-jurusan');
+    const elKelas = document.getElementById('kelas');
+    const searchInput = document.getElementById('search-input');
+    const reportSearch = document.getElementById('report-search');
+    const jurusanNote = document.getElementById('jurusan-note');
+
+    if (formGroupJurusan) {
+        formGroupJurusan.style.display = showJurusan ? '' : 'none';
+    }
+    if (thJurusan) {
+        thJurusan.style.display = showJurusan ? '' : 'none';
+    }
+    // Mode SMP: kosongkan input jurusan agar tidak ikut tersimpan
+    if (!showJurusan && elJurusan) {
+        elJurusan.value = '';
+    }
+
+    if (elKelas) {
+        if (schoolMode === 'smp') {
+            elKelas.placeholder = 'Contoh: 7A / 8B / 9C';
+        } else if (schoolMode === 'smk') {
+            elKelas.placeholder = 'Contoh: X TKJ 1 / XI RPL 2';
+        } else {
+            elKelas.placeholder = 'Contoh: 8A / XI TKJ 1';
+        }
+    }
+
+    if (jurusanNote) {
+        jurusanNote.textContent = schoolMode === 'smk' ? '(wajib untuk SMK)' : '(opsional)';
+    }
+
+    if (searchInput) {
+        searchInput.placeholder = showJurusan
+            ? 'Cari nama, kelas, jurusan, semester...'
+            : 'Cari nama, kelas, semester...';
+    }
+    if (reportSearch) {
+        reportSearch.placeholder = showJurusan
+            ? 'Cari nama, kelas, jurusan, semester...'
+            : 'Cari nama, kelas, semester...';
+    }
+}
+
+
+/** Normalisasi nilai jenjang user */
+function normalizeJenjang(value) {
+    const v = String(value || '').toLowerCase().trim();
+    if (v === 'smp' || v === 'smk' || v === 'all') return v;
+    return 'all';
+}
+
+/**
+ * Mode jenjang yang dipakai HANYA untuk form tambah/edit.
+ * - Admin SMP/SMK → terkunci ke jenjangnya
+ * - Super Admin / jenjang all → mengikuti toggle schoolMode
+ * Toggle filter data tetap bebas (tidak dikunci).
+ */
+function getFormSchoolMode() {
+    if (!currentUser) return schoolMode;
+    const j = normalizeJenjang(currentUser.jenjang);
+    if (currentUser.role === 'superadmin' || j === 'all') return schoolMode;
+    return j;
+}
+
+function getJenjangLabel(j) {
+    const v = normalizeJenjang(j);
+    if (v === 'smp') return 'SMP';
+    if (v === 'smk') return 'SMK';
+    return 'Semua';
+}
+
+/**
+ * Apakah user boleh memakai toggle filter SMP/SMK?
+ * - Tamu (belum login) → ya
+ * - Super Admin / jenjang all → ya
+ * - Admin SMP atau SMK → tidak (mode dikunci ke jenjang akun)
+ */
+function canUseSchoolToggle() {
+    if (!currentUser) return true;
+    if (currentUser.role === 'superadmin') return true;
+    const j = normalizeJenjang(currentUser.jenjang);
+    return j === 'all';
+}
+
+/**
+ * Kunci schoolMode ke jenjang akun bila admin biasa.
+ * Dipanggil saat login / update UI / load session.
+ */
+function applyUserJenjangMode() {
+    if (!currentUser) {
+        syncToggleVisibility();
+        return;
+    }
+    if (currentUser.role === 'superadmin' || normalizeJenjang(currentUser.jenjang) === 'all') {
+        syncToggleVisibility();
+        return;
+    }
+    const locked = normalizeJenjang(currentUser.jenjang); // smp | smk
+    if (schoolMode !== locked) {
+        schoolMode = locked;
+        try { localStorage.setItem('smpgelora_school_mode', locked); } catch (e) {}
+        document.querySelectorAll('.school-mode-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.mode === locked);
+        });
+    }
+    syncToggleVisibility();
+    syncSchoolModeUI();
+}
+
+/** Tampilkan/sembunyikan bar toggle sesuai hak akses */
+function syncToggleVisibility() {
+    const bar = document.getElementById('school-mode-bar');
+    if (!bar) return;
+    bar.style.display = canUseSchoolToggle() ? '' : 'none';
+}
+
+/**
+ * Sinkron UI form berdasarkan role guru (bukan toggle filter data).
+ */
+function syncFormSchoolUI() {
+    const formMode = getFormSchoolMode();
+    const showJurusan = formMode !== 'smp';
+    const formGroupJurusan = document.getElementById('form-group-jurusan');
+    const elJurusan = document.getElementById('jurusan');
+    const elKelas = document.getElementById('kelas');
+    const jurusanNote = document.getElementById('jurusan-note');
+    const notice = document.getElementById('form-jenjang-notice');
+
+    if (formGroupJurusan) {
+        formGroupJurusan.style.display = showJurusan ? '' : 'none';
+    }
+    if (!showJurusan && elJurusan) {
+        elJurusan.value = '';
+    }
+
+    if (elKelas) {
+        if (formMode === 'smp') {
+            elKelas.placeholder = 'Contoh: 7A / 8B / 9C';
+        } else if (formMode === 'smk') {
+            elKelas.placeholder = 'Contoh: X TKJ 1 / XI RPL 2';
+        } else {
+            elKelas.placeholder = 'Contoh: 8A / XI TKJ 1';
+        }
+    }
+
+    if (jurusanNote) {
+        jurusanNote.textContent = formMode === 'smk' ? '(wajib untuk SMK)' : '(opsional)';
+    }
+
+    if (notice) {
+        // Notice form-jenjang tidak ditampilkan — mode sudah otomatis sesuai role
+        notice.style.display = 'none';
+        notice.innerHTML = '';
+    }
+}
+
 document.getElementById('tanggal').value = getLocalDateISO();
+
 
 function toggleTheme() {
     document.body.classList.toggle('dark-mode');
@@ -67,7 +321,7 @@ function closeMenu() {
 }
 function showAbout() {
     Swal.fire({
-        title: 'SMP Gelora Bekasi',
+        title: 'SMP - SMK Gelora Bekasi',
         html: '<p>Sistem Rekapitulasi Pelanggaran Siswa v2.0</p>' +
               '<p style="margin-top: 10px; font-weight: bold; color: #f97316;">Licensed By: Restu Putra Perdana</p>',
         icon: 'info',
@@ -102,6 +356,8 @@ function openForm(){
         }).then(() => openLogin());
         return;
     }
+    batalEdit();
+    syncFormSchoolUI();
     showPage('form');
 }
 
@@ -151,16 +407,26 @@ async function loginUser(){
             id: data.id,
             username: data.username,
             nama: data.nama,
-            role: data.role
+            role: data.role,
+            jenjang: normalizeJenjang(data.jenjang)
         };
         localStorage.setItem('user_session', JSON.stringify(currentUser));
         closeLogin();
+        applyUserJenjangMode();
         updateAdminUI();
+        syncFormSchoolUI();
+        // Refresh data view sesuai jenjang terkunci
+        filterData();
+        renderRecent();
+        updateStats();
         Swal.fire({
             icon: 'success',
             title: 'Berhasil Login!',
-            text: `Selamat datang, ${currentUser.nama}`,
-            timer: 1500,
+            text: `Selamat datang, ${currentUser.nama}` +
+                  (currentUser.jenjang && currentUser.jenjang !== 'all'
+                    ? ` (${getJenjangLabel(currentUser.jenjang)})`
+                    : ''),
+            timer: 1800,
             showConfirmButton: false
         });
     }
@@ -180,7 +446,11 @@ function toggleAdminAuth(){
             if (result.isConfirmed) {
                 currentUser = null;
                 localStorage.removeItem('user_session');
+                syncToggleVisibility();
                 updateAdminUI();
+                filterData();
+                renderRecent();
+                updateStats();
                 Swal.fire({
                     icon: 'info',
                     title: 'Logout',
@@ -211,7 +481,12 @@ function updateAdminUI(){
     if(currentUser){
         if(userInfoText) userInfoText.style.display = 'block';
         if(guestLabel) guestLabel.style.display = 'none';
-        if(loggedUsername) loggedUsername.textContent = `${currentUser.nama}`;
+        if(loggedUsername) {
+            const jLabel = getJenjangLabel(currentUser.jenjang);
+            loggedUsername.textContent = currentUser.jenjang && currentUser.jenjang !== 'all'
+                ? `${currentUser.nama} · ${jLabel}`
+                : `${currentUser.nama}`;
+        }
         if(authBtn) authBtn.textContent = 'Keluar';
         inputs.forEach(x => x.disabled = false);
         if(save) save.disabled = false;
@@ -243,9 +518,11 @@ function updateAdminUI(){
         batalEdit();
     }
 
+    applyUserJenjangMode();
     filterData();
     renderRecent();
     updateStats();
+    syncFormSchoolUI();
 }
 
 async function openManageUserModal(){
@@ -258,6 +535,7 @@ async function openManageUserModal(){
         });
     }
     document.getElementById('user-modal').classList.add('show');
+    batalEditUser();
     await loadUsers();
 }
 function closeManageUserModal(){
@@ -345,57 +623,157 @@ async function loadUsers(){
     }
     usersList = data || [];
     const tbody = document.getElementById('user-table-body');
-    tbody.innerHTML = usersList.map(u => `
+    tbody.innerHTML = usersList.map(u => {
+        const jenjang = normalizeJenjang(u.jenjang);
+        const jenjangBadge = jenjang === 'smp'
+            ? '<span class="badge" style="background:#0ea5e9">SMP</span>'
+            : jenjang === 'smk'
+            ? '<span class="badge" style="background:#8b5cf6">SMK</span>'
+            : '<span class="badge" style="background:#64748b">Semua</span>';
+        const isSelf = u.username === currentUser.username;
+        return `
         <tr>
             <td>${escapeHtml(u.nama)}</td>
             <td>@${escapeHtml(u.username)}</td>
             <td><span class="badge ${u.role === 'superadmin' ? 'superadmin' : 'admin'}">${u.role}</span></td>
-            <td>
-                ${u.username !== currentUser.username ? `<button class="delete-btn" style="padding:4px 8px" onclick="hapusUser(${u.id}, '${escapeAttr(u.nama)}')">Hapus</button>` : '-'}
+            <td>${jenjangBadge}</td>
+            <td style="white-space:nowrap;">
+                <button class="edit-btn" style="padding:4px 8px; margin-right:4px;" onclick="editUser(${u.id})">Edit</button>
+                ${!isSelf ? `<button class="delete-btn" style="padding:4px 8px" onclick="hapusUser(${u.id}, '${escapeAttr(u.nama)}')">Hapus</button>` : '<span style="color:var(--muted);font-size:11px;">(Anda)</span>'}
             </td>
-        </tr>
-    `).join('');
+        </tr>`;
+    }).join('');
 }
 
-async function tambahUserBaru(){
+function editUser(id){
+    const u = usersList.find(x => x.id === id);
+    if(!u) return;
+    document.getElementById('user-edit-id').value = u.id;
+    document.getElementById('new-nama').value = u.nama || '';
+    document.getElementById('new-username').value = u.username || '';
+    document.getElementById('new-password').value = '';
+    document.getElementById('new-password').placeholder = 'Password (kosongkan jika tidak diubah)';
+    document.getElementById('new-role').value = u.role === 'superadmin' ? 'superadmin' : 'admin';
+    document.getElementById('new-jenjang').value = normalizeJenjang(u.jenjang);
+    document.getElementById('user-form-title').textContent = '✏️ Edit User';
+    document.getElementById('btn-simpan-user').textContent = '🔄 Update User';
+    document.getElementById('btn-batal-user').style.display = 'block';
+    // Username tidak diubah saat edit agar tidak bentrok session
+    document.getElementById('new-username').disabled = true;
+}
+
+function batalEditUser(){
+    document.getElementById('user-edit-id').value = '';
+    document.getElementById('new-nama').value = '';
+    document.getElementById('new-username').value = '';
+    document.getElementById('new-username').disabled = false;
+    document.getElementById('new-password').value = '';
+    document.getElementById('new-password').placeholder = 'Password';
+    document.getElementById('new-role').value = 'admin';
+    document.getElementById('new-jenjang').value = 'smp';
+    document.getElementById('user-form-title').textContent = '➕ Tambah User Baru';
+    document.getElementById('btn-simpan-user').textContent = '💾 Simpan User';
+    document.getElementById('btn-batal-user').style.display = 'none';
+}
+
+async function simpanUser(){
+    if(!currentUser || currentUser.role !== 'superadmin'){
+        return Swal.fire({ icon:'error', title:'Akses Ditolak', text:'Hanya Super Admin.', confirmButtonColor:'#e53935' });
+    }
+
+    const editId = document.getElementById('user-edit-id').value;
     const nama = document.getElementById('new-nama').value.trim();
     const username = document.getElementById('new-username').value.trim().toLowerCase();
     const password = document.getElementById('new-password').value.trim();
     const role = document.getElementById('new-role').value;
+    let jenjang = normalizeJenjang(document.getElementById('new-jenjang')?.value || 'all');
+    if (role === 'superadmin') jenjang = 'all';
 
-    if(!nama || !username || !password){
+    if(!nama || !username){
         return Swal.fire({
             icon: 'warning',
             title: 'Gagal',
-            text: 'Semua field user baru wajib diisi!',
+            text: 'Nama dan Username wajib diisi!',
             confirmButtonColor: '#f97316'
         });
     }
 
-    const { error } = await _supabase.from('users').insert([{ nama, username, password, role }]);
-    if(error){
+    // Tambah baru: password wajib. Edit: password opsional.
+    if(!editId && !password){
+        return Swal.fire({
+            icon: 'warning',
+            title: 'Gagal',
+            text: 'Password wajib diisi untuk user baru!',
+            confirmButtonColor: '#f97316'
+        });
+    }
+
+    try{
+        if(editId){
+            const payload = { nama, role, jenjang };
+            if(password) payload.password = password;
+
+            const { error } = await _supabase.from('users').update(payload).eq('id', editId);
+            if(error) throw error;
+
+            await catatLog('EDIT', `Mengubah user: ${nama} (@${username}) → ${role} / ${jenjang}`);
+
+            // Jika mengedit akun sendiri, update session
+            if(String(currentUser.id) === String(editId)){
+                currentUser.nama = nama;
+                currentUser.role = role;
+                currentUser.jenjang = jenjang;
+                localStorage.setItem('user_session', JSON.stringify(currentUser));
+                applyUserJenjangMode();
+                updateAdminUI();
+            }
+
+            Swal.fire({
+                icon: 'success',
+                title: 'Berhasil',
+                text: `User ${nama} diperbarui (${getJenjangLabel(jenjang)}).`,
+                confirmButtonColor: '#21a366'
+            });
+            batalEditUser();
+            await loadUsers();
+        } else {
+            const { error } = await _supabase.from('users').insert([{ nama, username, password, role, jenjang }]);
+            if(error) throw error;
+
+            await catatLog('TAMBAH', `Menambahkan user baru: ${nama} (@${username}) sebagai ${role} / ${jenjang}`);
+            Swal.fire({
+                icon: 'success',
+                title: 'Berhasil',
+                text: `User baru ditambahkan (${getJenjangLabel(jenjang)})!`,
+                confirmButtonColor: '#21a366'
+            });
+            batalEditUser();
+            await loadUsers();
+        }
+    }catch(err){
         Swal.fire({
             icon: 'error',
             title: 'Gagal Menyimpan',
-            text: 'Gagal menambahkan user: ' + error.message,
+            text: (err.message || String(err)) +
+                  (String(err.message||'').toLowerCase().includes('jenjang')
+                    ? ' — Jalankan SQL migrasi kolom jenjang di Supabase dulu.'
+                    : ''),
             confirmButtonColor: '#e53935'
         });
-    } else {
-        await catatLog('TAMBAH', `Menambahkan user baru: ${nama} (@${username}) sebagai ${role}`);
-        Swal.fire({
-            icon: 'success',
-            title: 'Berhasil',
-            text: 'User baru berhasil ditambahkan!',
-            confirmButtonColor: '#21a366'
-        });
-        document.getElementById('new-nama').value = '';
-        document.getElementById('new-username').value = '';
-        document.getElementById('new-password').value = '';
-        await loadUsers();
     }
 }
 
+// Alias lama biar tidak error jika masih terpanggil
+async function tambahUserBaru(){ return simpanUser(); }
+
 async function hapusUser(id, namaUser){
+    if(!currentUser || currentUser.role !== 'superadmin'){
+        return Swal.fire({ icon:'error', title:'Akses Ditolak', text:'Hanya Super Admin.', confirmButtonColor:'#e53935' });
+    }
+    if(String(id) === String(currentUser.id)){
+        return Swal.fire({ icon:'warning', title:'Tidak diizinkan', text:'Tidak bisa menghapus akun sendiri.', confirmButtonColor:'#f97316' });
+    }
+
     const confirm = await Swal.fire({
         title: 'Hapus User?',
         text: `User ${namaUser} tidak akan bisa login lagi.`,
@@ -411,6 +789,7 @@ async function hapusUser(id, namaUser){
         if(!error){
             await catatLog('HAPUS', `Menghapus user: ${namaUser}`);
             Swal.fire('Terhapus', 'User berhasil dihapus.', 'success');
+            if(document.getElementById('user-edit-id').value === String(id)) batalEditUser();
             await loadUsers();
         } else {
             Swal.fire('Gagal', 'Gagal menghapus user: ' + error.message, 'error');
@@ -632,12 +1011,13 @@ async function hapusKategori(id, nama){
 }
 
 function updateStats(){
-    document.getElementById('stat-total').textContent = records.length;
+    const scoped = filterBySchoolMode(records);
+    document.getElementById('stat-total').textContent = scoped.length;
 
     // Hitung jumlah kategori unik (sama logika dengan grafik Jenis Pelanggaran)
     // Bukan lagi hitung teks mentah yang ditulis guru.
     const categorySet = new Set();
-    (records || []).forEach(item => {
+    scoped.forEach(item => {
         const raw = String(item.pelanggaran || '').trim();
         if(!raw) return;
         detectViolationCategories(raw).forEach(cat => categorySet.add(cat));
@@ -651,6 +1031,13 @@ function updateStats(){
         return follow.status && follow.status !== 'Belum Ditindak';
     });
     document.getElementById('stat-acted').textContent = actedStudents.length;
+
+    // Tampilkan tahun ajaran & semester aktif di beranda
+    const { tahunAjaran, semester } = getDefaultTahunAjaranSemester();
+    const elTa = document.getElementById('stat-tahun-ajaran');
+    const elSem = document.getElementById('stat-semester');
+    if(elTa) elTa.textContent = tahunAjaran.replace('/', '-');
+    if(elSem) elSem.textContent = 'Semester ' + semester;
 }
 
 /** Deteksi kategori pelanggaran berdasarkan keyword dinamis dari Supabase */
@@ -715,7 +1102,7 @@ function showCategoryDebug(){
     const fromDate = document.getElementById('chart-from')?.value || '';
     const toDate = document.getElementById('chart-to')?.value || '';
 
-    let data = records || [];
+    let data = filterBySchoolMode(records || []);
     if(fromDate || toDate){
         data = data.filter(item => {
             const tgl = item.tanggal ? String(item.tanggal).substring(0, 10) : '';
@@ -796,6 +1183,9 @@ function getGroups(data, filterType){
         groups['Kelas 7'] = 0;
         groups['Kelas 8'] = 0;
         groups['Kelas 9'] = 0;
+        groups['Kelas X'] = 0;
+        groups['Kelas XI'] = 0;
+        groups['Kelas XII'] = 0;
         groups['Lainnya'] = 0;
 
         data.forEach(item => {
@@ -806,7 +1196,21 @@ function getGroups(data, filterType){
 
             let matched = false;
 
-            if(k.includes('8') || k.includes('VIII')){
+            // SMK: X / XI / XII (cek XI & XII dulu supaya tidak ketabrak X)
+            if(/\bXII\b|\b12\b/.test(k) || k.startsWith('XII') || k.startsWith('12')){
+                groups['Kelas XII']++;
+                matched = true;
+            }
+            else if(/\bXI\b|\b11\b/.test(k) || k.startsWith('XI') || k.startsWith('11')){
+                groups['Kelas XI']++;
+                matched = true;
+            }
+            else if(/\bX\b|\b10\b/.test(k) || k.startsWith('X ') || k.startsWith('10')){
+                groups['Kelas X']++;
+                matched = true;
+            }
+            // SMP
+            else if(k.includes('8') || k.includes('VIII')){
                 groups['Kelas 8']++;
                 matched = true;
             }
@@ -831,6 +1235,19 @@ function getGroups(data, filterType){
         });
 
         return Object.entries(groups);
+    }
+
+    // ==========================================
+    // BERDASARKAN JURUSAN
+    // ==========================================
+    if(filterType === 'jurusan'){
+        data.forEach(item => {
+            const j = (item.jurusan || '').trim();
+            const k = j ? j.toUpperCase() : 'Tanpa Jurusan';
+            groups[k] = (groups[k] || 0) + 1;
+        });
+        return Object.entries(groups)
+            .sort((a,b) => b[1] - a[1] || a[0].localeCompare(b[0], 'id'));
     }
 
     // ==========================================
@@ -955,7 +1372,7 @@ function updateChart(data = records) {
     const toEl = document.getElementById('chart-to');
     const fromDate = fromEl?.value || '';
     const toDate = toEl?.value || '';
-    let filtered = data || [];
+    let filtered = filterBySchoolMode(data || []);
     if(fromDate || toDate){
         filtered = filtered.filter(item => {
             const tgl = item.tanggal ? String(item.tanggal).substring(0, 10) : '';
@@ -1218,20 +1635,62 @@ function updateChart(data = records) {
 
     });
 }
-function getStudentKey(nama, kelas){
+function normTA(value){
+    return String(value || '').trim().replace(/-/g, '/').toLowerCase();
+}
+
+function getStudentKey(nama, kelas, tahunAjaran){
+    if(tahunAjaran){
+        return `${normalizeName(nama)}__ta:${normTA(tahunAjaran)}`;
+    }
     return `${normalizeName(nama)}__${normalizeName(kelas)}`;
 }
 
-function getThreeStrikeStudents(){
-    const groups = {};
+function getAvailableTahunAjaranList(){
+    const set = new Set();
+    filterBySchoolMode(records).forEach(item => {
+        const ta = String(item.tahun_ajaran || '').trim();
+        if(ta) set.add(ta);
+    });
+    const { tahunAjaran: defaultTA } = getDefaultTahunAjaranSemester();
+    const list = [...set].sort((a,b) => b.localeCompare(a, 'id'));
+    if(!list.includes(defaultTA)) list.unshift(defaultTA);
+    if(!list.length) list.push(defaultTA);
+    return list;
+}
 
-    records.forEach(item => {
+function populateReportTahunAjaranSelect(){
+    const sel = document.getElementById('report-tahun-ajaran');
+    if(!sel) return;
+    const list = getAvailableTahunAjaranList();
+    const { tahunAjaran: defaultTA } = getDefaultTahunAjaranSemester();
+    const prev = sel.value;
+    sel.innerHTML = list.map(ta =>
+        `<option value="${escapeAttr(ta)}">${escapeHtml(ta)}</option>`
+    ).join('');
+    if(prev && list.some(t => normTA(t) === normTA(prev))){
+        sel.value = list.find(t => normTA(t) === normTA(prev)) || defaultTA;
+    } else {
+        sel.value = list.find(t => normTA(t) === normTA(defaultTA)) || list[0] || defaultTA;
+    }
+}
+
+function getThreeStrikeStudents(tahunAjaran){
+    const groups = {};
+    const targetTA = normTA(
+        tahunAjaran ||
+        document.getElementById('report-tahun-ajaran')?.value ||
+        getDefaultTahunAjaranSemester().tahunAjaran
+    );
+
+    filterBySchoolMode(records).forEach(item => {
+        const itemTA = normTA(item.tahun_ajaran);
+        if(targetTA && itemTA !== targetTA) return;
+
         const nama = String(item.nama || '').trim();
         const kelas = String(item.kelas || '').trim();
         if(!nama) return;
 
-        // Report 3x dikelompokkan berdasarkan NAMA siswa.
-        // Perbedaan penulisan kelas tidak lagi memecah hitungan pelanggaran.
         const key = normalizeName(nama);
 
         if(!groups[key]){
@@ -1239,7 +1698,8 @@ function getThreeStrikeStudents(){
                 nama,
                 kelas: kelas || '-',
                 kelasList: [],
-                records: []
+                records: [],
+                tahun_ajaran: item.tahun_ajaran || targetTA
             };
         }
 
@@ -1251,12 +1711,12 @@ function getThreeStrikeStudents(){
 
     return Object.values(groups)
         .map(g => {
-            // Tampilkan kelas dari pelanggaran terbaru.
             const latest = [...g.records].sort((a,b) =>
                 String(b.tanggal||'').localeCompare(String(a.tanggal||'')) ||
                 Number(b.id||0) - Number(a.id||0)
             )[0];
             g.kelas = String(latest?.kelas || g.kelas || '-').trim() || '-';
+            g.tahun_ajaran = g.tahun_ajaran || targetTA;
             return g;
         })
         .filter(g => g.records.length >= 3)
@@ -1266,9 +1726,32 @@ function getThreeStrikeStudents(){
         );
 }
 
+function parseBuktiUrls(value){
+    if(Array.isArray(value)) return value.filter(u => typeof u === 'string' && u.trim());
+    if(typeof value === 'string' && value.trim()){
+        try {
+            const parsed = JSON.parse(value);
+            if(Array.isArray(parsed)) return parsed.filter(u => typeof u === 'string' && u.trim());
+        } catch(e) {}
+        return [value.trim()];
+    }
+    return [];
+}
+
 function getThreeStrikeFollowUp(g){
-    // Cari tindak lanjut lama pada kombinasi nama+kelas yang pernah tersimpan.
     const candidates = [];
+    const ta = g.tahun_ajaran ||
+        document.getElementById('report-tahun-ajaran')?.value ||
+        getDefaultTahunAjaranSemester().tahunAjaran;
+
+    if(ta){
+        const taKey = getStudentKey(g.nama, g.kelas, ta);
+        const taValue = followUpMap[taKey];
+        if(taValue && typeof taValue === 'object'){
+            candidates.push({key: taKey, value: taValue});
+        }
+    }
+
     const kelasCandidates = [...new Set([
         g.kelas,
         ...(g.kelasList || []),
@@ -1287,21 +1770,22 @@ function getThreeStrikeFollowUp(g){
         String(b.value.updated_at || '').localeCompare(String(a.value.updated_at || ''))
     );
 
-    const key = candidates[0]?.key || getStudentKey(g.nama, g.kelas);
+    const key = candidates[0]?.key || getStudentKey(g.nama, g.kelas, ta);
     return {key, follow:getFollowUp(key)};
 }
 
 function getFollowUp(key){
     const value = followUpMap[key];
     if(!value || typeof value !== 'object') {
-        return {status:'Belum Ditindak', tanggal:'', oleh:'', catatan:'', updated_at:''};
+        return {status:'Belum Ditindak', tanggal:'', oleh:'', catatan:'', updated_at:'', bukti_urls:[]};
     }
     return {
         status: value.status || 'Belum Ditindak',
         tanggal: value.tanggal || '',
         oleh: value.oleh || '',
         catatan: value.catatan || '',
-        updated_at: value.updated_at || ''
+        updated_at: value.updated_at || '',
+        bukti_urls: parseBuktiUrls(value.bukti_urls)
     };
 }
 
@@ -1323,7 +1807,8 @@ async function loadFollowUpsFromSupabase(){
                     tanggal: row.tanggal || '',
                     oleh: row.oleh || '',
                     catatan: row.catatan || '',
-                    updated_at: row.updated_at || ''
+                    updated_at: row.updated_at || '',
+                    bukti_urls: parseBuktiUrls(row.bukti_urls)
                 };
             }
         });
@@ -1366,12 +1851,13 @@ async function loadFollowUpsFromSupabase(){
             syncPayloads.push({
                 student_key:key,
                 nama:key.split('__')[0] || '-',
-                kelas:key.split('__')[1] || '-',
+                kelas:key.includes('__ta:') ? '-' : (key.split('__')[1] || '-'),
                 status:value.status || 'Belum Ditindak',
                 tanggal:value.tanggal || null,
                 oleh:value.oleh || null,
                 catatan:value.catatan || null,
-                updated_at:value.updated_at || new Date().toISOString()
+                updated_at:value.updated_at || new Date().toISOString(),
+                bukti_urls: parseBuktiUrls(value.bukti_urls)
             });
         });
 
@@ -1383,12 +1869,13 @@ async function loadFollowUpsFromSupabase(){
                 syncPayloads.push({
                     student_key:key,
                     nama:key.split('__')[0] || '-',
-                    kelas:key.split('__')[1] || '-',
+                    kelas:key.includes('__ta:') ? '-' : (key.split('__')[1] || '-'),
                     status:value.status || 'Belum Ditindak',
                     tanggal:value.tanggal || null,
                     oleh:value.oleh || null,
                     catatan:value.catatan || null,
-                    updated_at:value.updated_at || new Date().toISOString()
+                    updated_at:value.updated_at || new Date().toISOString(),
+                    bukti_urls: parseBuktiUrls(value.bukti_urls)
                 });
             }
         });
@@ -1410,12 +1897,14 @@ async function loadFollowUpsFromSupabase(){
 async function saveFollowUp(key, data, nama='', kelas=''){
     // Hardening P1: setiap perubahan mendapat timestamp agar konflik lokal/cloud
     // dapat diselesaikan deterministik.
+    const buktiUrls = parseBuktiUrls(data.bukti_urls);
     const normalized = {
         status: data.status || 'Belum Ditindak',
         tanggal: data.tanggal || '',
         oleh: data.oleh || '',
         catatan: data.catatan || '',
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString(),
+        bukti_urls: buktiUrls
     };
 
     followUpMap[key] = normalized;
@@ -1425,12 +1914,13 @@ async function saveFollowUp(key, data, nama='', kelas=''){
         const payload = {
             student_key: key,
             nama: nama || key.split('__')[0] || '-',
-            kelas: kelas || key.split('__')[1] || '-',
+            kelas: kelas || (key.includes('__ta:') ? '-' : (key.split('__')[1] || '-')),
             status: normalized.status,
             tanggal: normalized.tanggal || null,
             oleh: normalized.oleh || null,
             catatan: normalized.catatan || null,
-            updated_at: normalized.updated_at
+            updated_at: normalized.updated_at,
+            bukti_urls: buktiUrls
         };
         const { error } = await _supabase.from('tindak_lanjut').upsert([payload], {onConflict:'student_key'});
         if(error) throw error;
@@ -1455,57 +1945,173 @@ function statusBadgeHtml(status){
     return `<span class="badge" style="background:${bg};display:inline-block">${icon} ${escapeHtml(status)}</span>`;
 }
 
+async function uploadBuktiTindakanFiles(fileList){
+    const files = Array.from(fileList || []).filter(f => f && f.type && f.type.startsWith('image/'));
+    if(!files.length) return [];
+    const urls = [];
+    for(const file of files){
+        const compressed = await compressImage(file, 1000, 0.72);
+        const fileName = `bukti-tindak/${Date.now()}_${Math.random().toString(36).substring(7)}.jpg`;
+        const { error: uploadError } = await _supabase.storage
+            .from('foto-pelanggaran')
+            .upload(fileName, compressed);
+        if(uploadError) throw uploadError;
+        const { data: publicUrlData } = _supabase.storage
+            .from('foto-pelanggaran')
+            .getPublicUrl(fileName);
+        if(publicUrlData?.publicUrl) urls.push(publicUrlData.publicUrl);
+    }
+    return urls;
+}
+
 async function updateFollowUp(nama, kelas){
     if(!currentUser){
         return Swal.fire({ icon:'warning', title:'Akses Admin', text:'Login terlebih dahulu untuk memperbarui status tindak lanjut.', confirmButtonColor:'#f97316' });
     }
-    const key = getStudentKey(nama, kelas);
-    const current = getFollowUp(key);
+    const ta = document.getElementById('report-tahun-ajaran')?.value ||
+        getDefaultTahunAjaranSemester().tahunAjaran;
+    const key = getStudentKey(nama, kelas, ta);
+    const gProxy = { nama, kelas, kelasList: [kelas], records: [], tahun_ajaran: ta };
+    const { follow: current } = getThreeStrikeFollowUp(gProxy);
+    let keptBukti = [...(current.bukti_urls || [])];
+
+    const existingHtml = keptBukti.length
+        ? `<div id="swal-bukti-existing" style="display:flex;flex-wrap:wrap;gap:8px;margin:0 0 10px;">
+            ${keptBukti.map((url, idx) => `
+                <div data-bukti-idx="${idx}" style="position:relative;width:72px;height:72px;">
+                    <img src="${escapeAttr(url)}" alt="Bukti" onclick="openPhotoLightbox('${escapeAttr(url)}')"
+                        style="width:72px;height:72px;object-fit:cover;border-radius:10px;border:1px solid var(--border);cursor:zoom-in;">
+                    <button type="button" data-remove-bukti="${idx}"
+                        style="position:absolute;top:-6px;right:-6px;width:22px;height:22px;border:0;border-radius:50%;background:#e53935;color:#fff;font-size:12px;font-weight:800;cursor:pointer;line-height:22px;">×</button>
+                </div>
+            `).join('')}
+           </div>`
+        : `<p id="swal-bukti-empty" style="font-size:11px;color:var(--muted);margin:0 0 8px;">Belum ada bukti terunggah.</p>`;
+
     const { value: formValues } = await Swal.fire({
         title: `Tindak Lanjut — ${escapeHtml(nama)}`,
         html: `
-            <div style="text-align:left">\n                <label style="font-weight:700;font-size:12px;display:block;margin-bottom:5px">Status</label>\n                <select id="swal-follow-status" class="swal2-input" style="width:100%;margin:0 0 10px">\n                    <option ${current.status==='Belum Ditindak'?'selected':''}>Belum Ditindak</option>\n                    <option ${current.status==='Sudah Ditindak Wali Kelas'?'selected':''}>Sudah Ditindak Wali Kelas</option>\n                    <option ${current.status==='Sudah Ditindak BK'?'selected':''}>Sudah Ditindak BK</option>\n                    <option ${current.status==='Dilaporkan ke Tim Inti 1'?'selected':''}>Dilaporkan ke Tim Inti 1</option>\n                    <option ${current.status==='Selesai / Sudah Ditangani'?'selected':''}>Selesai / Sudah Ditangani</option>\n                </select>\n                <label style="font-weight:700;font-size:12px;display:block;margin-bottom:5px">Tanggal Tindakan</label>\n                <input id="swal-follow-date" type="date" class="swal2-input" value="${escapeAttr(current.tanggal || getLocalDateISO())}" style="width:100%;margin:0 0 10px">\n                <label style="font-weight:700;font-size:12px;display:block;margin-bottom:5px">Ditindak oleh</label>\n                <input id="swal-follow-by" class="swal2-input" value="${escapeAttr(current.oleh || currentUser.nama || '')}" placeholder="Nama guru/petugas" style="width:100%;margin:0 0 10px">\n                <label style="font-weight:700;font-size:12px;display:block;margin-bottom:5px">Catatan</label>\n                <textarea id="swal-follow-note" class="swal2-textarea" placeholder="Catatan tindak lanjut" style="width:100%;margin:0">${escapeHtml(current.catatan || '')}</textarea>\n            </div>`,
+            <div style="text-align:left">
+                <p style="font-size:11px;color:var(--muted);margin:0 0 10px;">Tahun Ajaran: <strong>${escapeHtml(ta)}</strong></p>
+                <label style="font-weight:700;font-size:12px;display:block;margin-bottom:5px">Status</label>
+                <select id="swal-follow-status" class="swal2-input" style="width:100%;margin:0 0 10px">
+                    <option ${current.status==='Belum Ditindak'?'selected':''}>Belum Ditindak</option>
+                    <option ${current.status==='Sudah Ditindak Wali Kelas'?'selected':''}>Sudah Ditindak Wali Kelas</option>
+                    <option ${current.status==='Sudah Ditindak BK'?'selected':''}>Sudah Ditindak BK</option>
+                    <option ${current.status==='Dilaporkan ke Tim Inti 1'?'selected':''}>Dilaporkan ke Tim Inti 1</option>
+                    <option ${current.status==='Selesai / Sudah Ditangani'?'selected':''}>Selesai / Sudah Ditangani</option>
+                </select>
+                <label style="font-weight:700;font-size:12px;display:block;margin-bottom:5px">Tanggal Tindakan</label>
+                <input id="swal-follow-date" type="date" class="swal2-input" value="${escapeAttr(current.tanggal || getLocalDateISO())}" style="width:100%;margin:0 0 10px">
+                <label style="font-weight:700;font-size:12px;display:block;margin-bottom:5px">Ditindak oleh</label>
+                <input id="swal-follow-by" class="swal2-input" value="${escapeAttr(current.oleh || currentUser.nama || '')}" placeholder="Nama guru/petugas" style="width:100%;margin:0 0 10px">
+                <label style="font-weight:700;font-size:12px;display:block;margin-bottom:5px">Catatan</label>
+                <textarea id="swal-follow-note" class="swal2-textarea" placeholder="Catatan tindak lanjut" style="width:100%;margin:0 0 10px">${escapeHtml(current.catatan || '')}</textarea>
+                <label style="font-weight:700;font-size:12px;display:block;margin-bottom:5px">Bukti Tindakan (gambar, bisa lebih dari 1)</label>
+                ${existingHtml}
+                <input id="swal-follow-bukti" type="file" accept="image/*" multiple class="swal2-file" style="width:100%;font-size:12px;">
+                <p style="font-size:11px;color:var(--muted);margin:6px 0 0;">Gambar otomatis dikompres. Boleh upload beberapa surat/foto sekaligus.</p>
+            </div>`,
         showCancelButton:true,
         confirmButtonText:'💾 Simpan Status',
         cancelButtonText:'Batal',
         confirmButtonColor:'#21a366',
-        preConfirm:() => ({
-            status: document.getElementById('swal-follow-status').value,
-            tanggal: document.getElementById('swal-follow-date').value,
-            oleh: document.getElementById('swal-follow-by').value.trim(),
-            catatan: document.getElementById('swal-follow-note').value.trim()
-        })
+        didOpen: () => {
+            const box = document.getElementById('swal-bukti-existing');
+            if(!box) return;
+            box.addEventListener('click', (e) => {
+                const btn = e.target.closest('[data-remove-bukti]');
+                if(!btn) return;
+                const idx = Number(btn.getAttribute('data-remove-bukti'));
+                if(Number.isNaN(idx)) return;
+                keptBukti = keptBukti.filter((_, i) => i !== idx);
+                const card = btn.closest('[data-bukti-idx]');
+                if(card) card.remove();
+                if(!keptBukti.length && !document.getElementById('swal-bukti-empty')){
+                    const p = document.createElement('p');
+                    p.id = 'swal-bukti-empty';
+                    p.style.cssText = 'font-size:11px;color:var(--muted);margin:0 0 8px;';
+                    p.textContent = 'Belum ada bukti terunggah.';
+                    box.parentNode.insertBefore(p, box);
+                }
+            });
+        },
+        preConfirm: async () => {
+            const status = document.getElementById('swal-follow-status').value;
+            const tanggal = document.getElementById('swal-follow-date').value;
+            const oleh = document.getElementById('swal-follow-by').value.trim();
+            const catatan = document.getElementById('swal-follow-note').value.trim();
+            const fileInput = document.getElementById('swal-follow-bukti');
+            let newUrls = [];
+            try {
+                if(fileInput?.files?.length){
+                    Swal.showLoading();
+                    newUrls = await uploadBuktiTindakanFiles(fileInput.files);
+                }
+            } catch(err){
+                Swal.showValidationMessage('Gagal mengunggah bukti: ' + (err.message || err));
+                return false;
+            }
+            return {
+                status, tanggal, oleh, catatan,
+                bukti_urls: [...keptBukti, ...newUrls]
+            };
+        }
     });
     if(formValues){
         const synced = await saveFollowUp(key, formValues, nama, kelas);
-        await catatLog('TINDAK_LANJUT', `Memperbarui tindak lanjut ${nama} (${kelas}): ${formValues.status}${formValues.catatan ? ' - ' + formValues.catatan : ''}`);
+        const nBukti = (formValues.bukti_urls || []).length;
+        await catatLog('TINDAK_LANJUT', `Memperbarui tindak lanjut ${nama} (${kelas}) TA ${ta}: ${formValues.status}${formValues.catatan ? ' - ' + formValues.catatan : ''}${nBukti ? ` [${nBukti} bukti]` : ''}`);
         renderThreeStrikeReport();
-        Swal.fire({icon:'success', title:'Status tersimpan', text:`Status ${nama} diperbarui.${synced ? ' Tersimpan di Supabase.' : ' Tersimpan di perangkat; Supabase belum siap.'}`, timer:1400, showConfirmButton:false});
+        updateStats();
+        Swal.fire({
+            icon:'success',
+            title:'Status tersimpan',
+            text:`Status ${nama} diperbarui${nBukti ? ` (${nBukti} bukti)` : ''}.${synced ? ' Tersimpan di Supabase.' : ' Tersimpan di perangkat; Supabase belum siap.'}`,
+            timer:1600,
+            showConfirmButton:false
+        });
     }
 }
 
 function renderThreeStrikeReport(){
     const box = document.getElementById('report-3x-list');
     if(!box) return;
+    populateReportTahunAjaranSelect();
+    const ta = document.getElementById('report-tahun-ajaran')?.value ||
+        getDefaultTahunAjaranSemester().tahunAjaran;
     const keyword = (document.getElementById('report-search')?.value || '').toLowerCase().trim();
-    const students = getThreeStrikeStudents().filter(g =>
-        !keyword || g.nama.toLowerCase().includes(keyword) || g.kelas.toLowerCase().includes(keyword)
-    );
+    const students = getThreeStrikeStudents(ta).filter(g => {
+        if(!keyword) return true;
+        const nama = (g.nama || '').toLowerCase();
+        const kelas = (g.kelas || '').toLowerCase();
+        const jurusan = (g.records || []).map(r => (r.jurusan || '').toLowerCase()).join(' ');
+        return nama.includes(keyword) || kelas.includes(keyword) || jurusan.includes(keyword);
+    });
     if(!students.length){
-        box.innerHTML = '<div class="empty">Belum ada siswa dengan 3x pelanggaran.</div>';
+        box.innerHTML = `<div class="empty">Belum ada siswa dengan 3x pelanggaran pada TA ${escapeHtml(ta)}.</div>`;
         return;
     }
     box.innerHTML = students.map(g => {
-        const {key, follow} = getThreeStrikeFollowUp(g);
+        const { follow } = getThreeStrikeFollowUp(g);
         const latest = [...g.records].sort((a,b)=>String(b.tanggal||'').localeCompare(String(a.tanggal||''))).slice(0,3);
         const riwayat = latest.map((r,i)=>`${i+1}. ${escapeHtml(r.pelanggaran||'-')} — ${escapeHtml(formatTanggalIndonesia(r.tanggal)||'-')}`).join('<br>');
+        const buktiUrls = parseBuktiUrls(follow.bukti_urls);
+        const buktiHtml = buktiUrls.length
+            ? `<div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:6px;">
+                ${buktiUrls.map(url =>
+                    `<img src="${escapeAttr(url)}" alt="Bukti tindakan" onclick="openPhotoLightbox('${escapeAttr(url)}')"
+                        style="width:56px;height:56px;object-fit:cover;border-radius:10px;border:1px solid var(--border);cursor:zoom-in;">`
+                ).join('')}
+               </div>`
+            : '';
         return `<div class="record" style="grid-template-columns:1fr;">
             <div class="record-main">
                 <div class="record-name">${escapeHtml(g.nama)}</div>
-                <div class="record-meta">🏫 Kelas ${escapeHtml(g.kelas)} · <strong>${g.records.length}x pelanggaran</strong></div>
+                <div class="record-meta">🏫 Kelas ${escapeHtml(g.kelas)} · <strong>${g.records.length}x pelanggaran</strong> · TA ${escapeHtml(ta)}</div>
                 <div style="margin-top:9px">${statusBadgeHtml(follow.status)}</div>
                 <div style="font-size:11px;color:var(--muted);margin-top:8px;line-height:1.55">${riwayat}</div>
-                ${follow.tanggal || follow.oleh || follow.catatan ? `<div style="margin-top:9px;padding:9px;border-radius:10px;background:var(--bg);font-size:11px;line-height:1.5"><strong>Tindak lanjut:</strong> ${follow.tanggal ? escapeHtml(formatTanggalIndonesia(follow.tanggal)) : '-'}${follow.oleh ? ` · ${escapeHtml(follow.oleh)}` : ''}${follow.catatan ? `<br>${escapeHtml(follow.catatan)}` : ''}</div>` : ''}
+                ${follow.tanggal || follow.oleh || follow.catatan || buktiUrls.length ? `<div style="margin-top:9px;padding:9px;border-radius:10px;background:var(--bg);font-size:11px;line-height:1.5"><strong>Tindak lanjut:</strong> ${follow.tanggal ? escapeHtml(formatTanggalIndonesia(follow.tanggal)) : '-'}${follow.oleh ? ` · ${escapeHtml(follow.oleh)}` : ''}${follow.catatan ? `<br>${escapeHtml(follow.catatan)}` : ''}${buktiHtml}</div>` : ''}
             </div>
             <div class="actions">
                 <button class="edit-btn" onclick="updateFollowUp('${escapeAttr(g.nama)}','${escapeAttr(g.kelas)}')">📝 Tindak Lanjut</button>
@@ -1519,7 +2125,7 @@ function renderThreeStrikeReport(){
 function renderRecent(){
     const box = document.getElementById('recent-list');
     if(!box)return;
-    const latest = [...records].sort((a, b) => {
+    const latest = [...filterBySchoolMode(records)].sort((a, b) => {
         const da = String(a.tanggal || '').substring(0, 10);
         const db = String(b.tanggal || '').substring(0, 10);
         return db.localeCompare(da) || Number(b.id || 0) - Number(a.id || 0);
@@ -1548,7 +2154,7 @@ function recordCard(item){
         <div class="record-main">
             <div class="record-date">📅 ${escapeHtml(formatTanggalIndonesia(item.tanggal)||'-')}</div>
             <div class="record-name">${escapeHtml(item.nama||'-')}</div>
-            <div class="record-meta">🏫 Kelas ${escapeHtml(item.kelas||'-')}</div>
+            <div class="record-meta">🏫 Kelas ${escapeHtml(item.kelas||'-')}${item.jurusan ? ' · ' + escapeHtml(item.jurusan) : ''}${item.semester ? ' · ' + escapeHtml(item.semester) : ''}</div>
             <div class="record-violation">⚠️ ${escapeHtml(item.pelanggaran||'-')}</div>
         </div>
         ${photo}
@@ -1576,17 +2182,23 @@ function renderTable(){
 
     if(tbody){
         tbody.innerHTML = '';
+        const showJurusan = schoolMode !== 'smp';
+        const colCount = showJurusan ? 8 : 7;
         if(!paginatedItems.length){
-            tbody.innerHTML = '<tr><td colspan="7">Data tidak ditemukan</td></tr>';
+            tbody.innerHTML = `<tr><td colspan="${colCount}">Data tidak ditemukan</td></tr>`;
         } else {
             paginatedItems.forEach((item, index) => {
                 const tr = document.createElement('tr');
                 const absoluteNo = start + index + 1;
+                const jurusanTd = showJurusan
+                    ? `<td>${escapeHtml(item.jurusan||'-')}</td>`
+                    : '';
                 tr.innerHTML = `
                     <td>${absoluteNo}</td>
                     <td>${escapeHtml(formatTanggalIndonesia(item.tanggal)||'-')}</td>
                     <td>${escapeHtml(item.nama||'-')}</td>
                     <td>${escapeHtml(item.kelas||'-')}</td>
+                    ${jurusanTd}
                     <td>${escapeHtml(item.pelanggaran||'-')}</td>
                     <td>${item.foto_url ? `<img src="${escapeAttr(item.foto_url)}" alt="Foto bukti" onclick="openPhotoLightbox('${escapeAttr(item.foto_url)}')">` : '-'}</td>
                     <td>${currentUser ? `
@@ -1612,10 +2224,15 @@ function changePage(direction){
 }
 
 function filterData(){
-    const keyword = document.getElementById('search-input').value.toLowerCase().trim();
-    filteredRecordsCache = records.filter(item =>
+    const keyword = (document.getElementById('search-input')?.value || '').toLowerCase().trim();
+    const scoped = filterBySchoolMode(records);
+    filteredRecordsCache = scoped.filter(item =>
+        !keyword ||
         (item.nama||'').toLowerCase().includes(keyword) ||
         (item.kelas||'').toLowerCase().includes(keyword) ||
+        (item.jurusan||'').toLowerCase().includes(keyword) ||
+        (item.tahun_ajaran||'').toLowerCase().includes(keyword) ||
+        (item.semester||'').toLowerCase().includes(keyword) ||
         (item.pelanggaran||'').toLowerCase().includes(keyword)
     );
     currentPage = 1;
@@ -1738,7 +2355,7 @@ async function kirimWhatsAppManual(namaSiswa, kelasSiswa) {
         if (phone.startsWith('0')) phone = '62' + phone.slice(1);
 
         const daftarPelanggaran = listSiswa.map((item, idx) => `${idx + 1}. ${item.pelanggaran} (${formatTanggalIndonesia(item.tanggal)})`).join('\n');
-        const message = `Yth. Bapak/Ibu Wali Murid / Wali Kelas dari *${namaSiswa}* (${kelasTampil}).\n\nBerikut menginformasikan catatan pelanggaran siswa di SMP Gelora Bekasi:\n*Total Pelanggaran:* ${totalCount} kali\n\nRiwayat Pelanggaran:\n${daftarPelanggaran}\n\nMohon untuk dilakukan pembinaan bersama.\n\nTerima kasih.\n*SMP Gelora Bekasi*`;
+        const message = `Yth. Bapak/Ibu Wali Murid / Wali Kelas dari *${namaSiswa}* (${kelasTampil}).\n\nBerikut menginformasikan catatan pelanggaran siswa di SMP - SMK Gelora Bekasi:\n*Total Pelanggaran:* ${totalCount} kali\n\nRiwayat Pelanggaran:\n${daftarPelanggaran}\n\nMohon untuk dilakukan pembinaan bersama.\n\nTerima kasih.\n*SMP - SMK Gelora Bekasi*`;
 
         window.open(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`, '_blank');
     }
@@ -1769,7 +2386,7 @@ async function checkPelanggaranCountAndPrompt(namaSiswa, kelasSiswa) {
             if (phone.startsWith('0')) phone = '62' + phone.slice(1);
 
             const daftarPelanggaran = listSiswa.map((item, idx) => `${idx + 1}. ${item.pelanggaran} (${formatTanggalIndonesia(item.tanggal)})`).join('\n');
-            const message = `Yth. Bapak/Ibu Orang Tua/Wali dari *${namaSiswa}* (${kelasTampil}).\n\nBermaksud menginformasikan bahwa siswa tersebut telah mencapai *${totalCount} kali pelanggaran* di SMP Gelora Bekasi.\n\nRiwayat Pelanggaran:\n${daftarPelanggaran}\n\nSehubungan dengan hal tersebut, kami mengundang Bapak/Ibu hadir ke sekolah untuk bimbingan konseling.\n\nTerima kasih.\n*SMP Gelora Bekasi*`;
+            const message = `Yth. Bapak/Ibu Orang Tua/Wali dari *${namaSiswa}* (${kelasTampil}).\n\nBermaksud menginformasikan bahwa siswa tersebut telah mencapai *${totalCount} kali pelanggaran* di SMP - SMK Gelora Bekasi.\n\nRiwayat Pelanggaran:\n${daftarPelanggaran}\n\nSehubungan dengan hal tersebut, kami mengundang Bapak/Ibu hadir ke sekolah untuk bimbingan konseling.\n\nTerima kasih.\n*SMP - SMK Gelora Bekasi*`;
 
             window.open(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`, '_blank');
         }
@@ -1788,6 +2405,12 @@ async function simpanData(){
     const tanggal = document.getElementById('tanggal').value;
     const nama = document.getElementById('nama').value.trim();
     const kelas = document.getElementById('kelas').value.trim();
+    // Mode form mengikuti role guru (bukan toggle filter data)
+    const formMode = getFormSchoolMode();
+    let jurusan = (document.getElementById('jurusan')?.value || '').trim();
+    if (formMode === 'smp') jurusan = '';
+    const tahun_ajaran = (document.getElementById('tahun_ajaran')?.value || '').trim();
+    const semester = (document.getElementById('semester')?.value || '').trim();
     const pelanggaran = document.getElementById('pelanggaran').value.trim();
     const fotoInput = document.getElementById('foto').files[0];
     const btn = document.getElementById('btn-save');
@@ -1797,6 +2420,15 @@ async function simpanData(){
             icon: 'warning',
             title: 'Form Inkomplit',
             text: 'Nama, Kelas, dan Pelanggaran wajib diisi!',
+            confirmButtonColor: '#f97316'
+        });
+    }
+
+    if (formMode === 'smk' && !jurusan) {
+        return Swal.fire({
+            icon: 'warning',
+            title: 'Form Inkomplit',
+            text: 'Jurusan wajib diisi untuk data SMK!',
             confirmButtonColor: '#f97316'
         });
     }
@@ -1831,7 +2463,12 @@ async function simpanData(){
         }
 
         if(editId){
-            const payload = {tanggal, nama, kelas, pelanggaran};
+            const payload = {
+                tanggal, nama, kelas, pelanggaran,
+                jurusan: jurusan || null,
+                tahun_ajaran: tahun_ajaran || null,
+                semester: semester || null
+            };
             if(fotoUrl) payload.foto_url = fotoUrl;
 
             const {error} = await _supabase.from('pelanggaran').update(payload).eq('id', editId);
@@ -1853,7 +2490,10 @@ async function simpanData(){
             });
         } else {
             const {error} = await _supabase.from('pelanggaran').insert([{
-                tanggal, nama, kelas, pelanggaran, foto_url: fotoUrl
+                tanggal, nama, kelas, pelanggaran, foto_url: fotoUrl,
+                jurusan: jurusan || null,
+                tahun_ajaran: tahun_ajaran || null,
+                semester: semester || null
             }]);
             if(error) throw error;
             
@@ -1948,7 +2588,7 @@ function cetakSuratPanggilan(namaSiswa, kelasSiswa) {
         </head>
         <body>
             <div class="kop-surat">
-                <h2>SMP GELORA BEKASI</h2>
+                <h2>SMP - SMK GELORA BEKASI</h2>
                 <p>Jl. Raya Kp. Irian, RT.005/RW.003, Telk. Pucang, Kec. Bekasi Utara, Kota Bekasi, Jawa Barat 17121</p>
                 <p>Telp: (021) 88985463</p>
             </div>
@@ -1976,7 +2616,7 @@ function cetakSuratPanggilan(namaSiswa, kelasSiswa) {
                 <table class="table-data" style="margin-left: 15px;">
                     <tr><td width="120">Hari / Tanggal</td><td width="10">:</td><td>.......................................................</td></tr>
                     <tr><td>Waktu</td><td>:</td><td>08.00 WIB – Selesai</td></tr>
-                    <tr><td>Tempat</td><td>:</td><td>Ruang Bimbingan Konseling (BK) SMP Gelora Bekasi</td></tr>
+                    <tr><td>Tempat</td><td>:</td><td>Ruang Bimbingan Konseling (BK) SMP - SMK Gelora Bekasi</td></tr>
                     <tr><td>Bertemu</td><td>:</td><td>Guru BK / Kesiswaan</td></tr>
                 </table>
 
@@ -2015,11 +2655,22 @@ function editData(id){
     : '';
     document.getElementById('nama').value = item.nama||'';
     document.getElementById('kelas').value = item.kelas||'';
+    const elJurusan = document.getElementById('jurusan');
+    if(elJurusan) elJurusan.value = item.jurusan || '';
+    const elTa = document.getElementById('tahun_ajaran');
+    const elSem = document.getElementById('semester');
+    if(elTa) elTa.value = item.tahun_ajaran || '';
+    if(elSem) elSem.value = item.semester || '';
     document.getElementById('pelanggaran').value = item.pelanggaran||'';
     document.getElementById('foto').value = '';
     document.getElementById('form-title').textContent = '✏️ Edit Pelanggaran';
     document.getElementById('btn-save').textContent = '🔄 Update Data';
     document.getElementById('btn-cancel').style.display = 'block';
+    syncFormSchoolUI();
+    if (getFormSchoolMode() === 'smp') {
+        const elJ = document.getElementById('jurusan');
+        if (elJ) elJ.value = '';
+    }
     showPage('form');
 }
 
@@ -2029,11 +2680,19 @@ function batalEdit(){
     document.getElementById('tanggal').value = getLocalDateISO();
     document.getElementById('nama').value = '';
     document.getElementById('kelas').value = '';
+    const elJurusan = document.getElementById('jurusan');
+    if(elJurusan) elJurusan.value = '';
+    const { tahunAjaran, semester } = getDefaultTahunAjaranSemester();
+    const elTa = document.getElementById('tahun_ajaran');
+    const elSem = document.getElementById('semester');
+    if(elTa) elTa.value = tahunAjaran;
+    if(elSem) elSem.value = semester;
     document.getElementById('pelanggaran').value = '';
     document.getElementById('foto').value = '';
     document.getElementById('form-title').textContent = '➕ Tambah Pelanggaran';
     document.getElementById('btn-save').textContent = '💾 Simpan Data';
     document.getElementById('btn-cancel').style.display = 'none';
+    syncFormSchoolUI();
 }
 
 async function hapusData(id){
@@ -2132,9 +2791,9 @@ async function exportThreeStrikeReport(){
         ws.mergeCells('A1:J1');
         ws.mergeCells('A2:J2');
         ws.mergeCells('A3:J3');
-        ws.getCell('A1').value = 'REPORT SISWA 3X PELANGGARAN';
-        ws.getCell('A2').value = 'SMP GELORA BEKASI';
-        ws.getCell('A3').value = 'TAHUN AJARAN 2026-2027';
+        ws.getCell('A1').value = 'REPORT SISWA 3X PELANGGARAN (' + getSchoolModeLabel() + ')';
+        ws.getCell('A2').value = 'SMP - SMK GELORA BEKASI';
+        ws.getCell('A3').value = 'TAHUN AJARAN ' + String(formValues.tahunAjaran).replace('/', '-');
 
         ['A1','A2','A3'].forEach((cell,i)=>{
             ws.getCell(cell).font = {
@@ -2274,7 +2933,7 @@ async function exportThreeStrikeReport(){
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
-        link.download = `Report_3x_Pelanggaran_SMP_Gelora_${getLocalDateISO()}.xlsx`;
+        link.download = `Report_3x_Pelanggaran_${getSchoolModeLabel().replace(/\s+/g,'_')}_Gelora_${getLocalDateISO()}.xlsx`;
         document.body.appendChild(link);
         link.click();
         link.remove();
@@ -2331,6 +2990,23 @@ function getLocalDateISO(date = new Date()) {
     const m = String(date.getMonth() + 1).padStart(2, '0');
     const d = String(date.getDate()).padStart(2, '0');
     return `${y}-${m}-${d}`;
+}
+
+/** Hitung tahun ajaran & semester otomatis (Juli-Juni) */
+function getDefaultTahunAjaranSemester(date = new Date()) {
+    const year = date.getFullYear();
+    const month = date.getMonth() + 1; // 1-12
+    let tahunAjaran, semester;
+    if (month >= 7) {
+        // Juli - Desember → Ganjil
+        tahunAjaran = `${year}/${year + 1}`;
+        semester = 'Ganjil';
+    } else {
+        // Januari - Juni → Genap
+        tahunAjaran = `${year - 1}/${year}`;
+        semester = 'Genap';
+    }
+    return { tahunAjaran, semester };
 }
 
 function parseDateOnly(value) {
@@ -2392,6 +3068,20 @@ const savedPageOnRefresh = localStorage.getItem('smpgelora_current_page') || 'ho
 showAppLoading('Sedang memuat data...');
 showPage(savedPageOnRefresh);
 updateAdminUI();
+// Set default tahun ajaran & semester di form
+(function initDefaultTA(){
+    const { tahunAjaran, semester } = getDefaultTahunAjaranSemester();
+    const elTa = document.getElementById('tahun_ajaran');
+    const elSem = document.getElementById('semester');
+    if(elTa && !elTa.value) elTa.value = tahunAjaran;
+    if(elSem && !elSem.value) elSem.value = semester;
+})();
+// Sinkronkan tombol mode SMP/SMK + UI form/tabel/grafik jurusan
+document.querySelectorAll('.school-mode-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.mode === schoolMode);
+});
+syncSchoolModeUI();
+applyUserJenjangMode();
 loadData();
 async function addNativeExcelCharts(xlsxBuffer, chartConfigs){
     if(typeof JSZip === 'undefined'){
@@ -2476,8 +3166,8 @@ ${extra}</c:ser>${chartAxisIds}${endChart}${axes}</c:plotArea>${isPie ? '<c:lege
 
         const row1 = cfg.anchorRow;
         const row2 = cfg.anchorRow + (cfg.heightRows || 15);
-        const col1 = cfg.anchorCol ?? 7;
-        const col2 = cfg.anchorColEnd ?? 13;
+        const col1 = cfg.anchorCol ?? 10;
+        const col2 = cfg.anchorColEnd ?? 18;
         const anchor = `<xdr:twoCellAnchor editAs="oneCell"><xdr:from><xdr:col>${col1}</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>${row1}</xdr:row><xdr:rowOff>0</xdr:rowOff></xdr:from><xdr:to><xdr:col>${col2}</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>${row2}</xdr:row><xdr:rowOff>0</xdr:rowOff></xdr:to><xdr:graphicFrame macro=""><xdr:nvGraphicFramePr><xdr:cNvPr id="${frameId++}" name="Chart ${chartNum}"/><xdr:cNvGraphicFramePr><a:graphicFrameLocks noGrp="1"/></xdr:cNvGraphicFramePr></xdr:nvGraphicFramePr><xdr:xfrm/><a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/chart"><c:chart xmlns:c="http://schemas.openxmlformats.org/drawingml/2006/chart" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" r:id="${rid}"/></a:graphicData></a:graphic></xdr:graphicFrame><xdr:clientData/></xdr:twoCellAnchor>`;
         drawingXml = drawingXml.replace('</xdr:wsDr>', anchor + '</xdr:wsDr>');
 
@@ -2501,18 +3191,54 @@ async function exportToExcel(){
         confirmButtonColor: '#f97316'
     });
 
-    const today = getLocalDateISO();
-    const pastDate = getLocalDateISO(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000));
+    // Kumpulkan tahun ajaran unik dari data (mode jenjang aktif)
+    const scopedForOptions = filterBySchoolMode(records);
+    const tahunList = getAvailableTahunAjaranList();
+    const { tahunAjaran: defaultTA } = getDefaultTahunAjaranSemester();
+    const now = new Date();
+    const defaultMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+
+    const tahunOptions = tahunList.map(ta =>
+        `<option value="${escapeAttr(ta)}" ${normTA(ta) === normTA(defaultTA) ? 'selected' : ''}>${escapeHtml(ta)}</option>`
+    ).join('');
 
     const { value: formValues } = await Swal.fire({
         title: '📗 Export ke Excel',
         html: `
             <div style="text-align: left; font-size: 13px;">
-                <label style="font-weight: bold; display: block; margin-bottom: 4px;">Dari Tanggal:</label>
-                <input id="swal-export-from" type="date" class="swal2-input" value="${pastDate}" style="margin: 0 0 12px 0; width: 100%;">
-                
-                <label style="font-weight: bold; display: block; margin-bottom: 4px;">Sampai Tanggal:</label>
-                <input id="swal-export-to" type="date" class="swal2-input" value="${today}" style="margin: 0 0 12px 0; width: 100%;">
+                <label style="font-weight: bold; display: block; margin-bottom: 4px;">Mode Filter:</label>
+                <select id="swal-export-mode" class="swal2-input" style="margin: 0 0 12px 0; width: 100%;">
+                    <option value="ta_sem" selected>Tahun Ajaran + Semester</option>
+                    <option value="bulan">Per Bulan</option>
+                    <option value="tanggal">Rentang Tanggal</option>
+                </select>
+
+                <div id="swal-export-box-ta">
+                    <label style="font-weight: bold; display: block; margin-bottom: 4px;">Tahun Ajaran:</label>
+                    <select id="swal-export-ta" class="swal2-input" style="margin: 0 0 12px 0; width: 100%;">
+                        ${tahunOptions}
+                    </select>
+                    <label style="font-weight: bold; display: block; margin-bottom: 4px;">Semester:</label>
+                    <select id="swal-export-sem" class="swal2-input" style="margin: 0 0 4px 0; width: 100%;">
+                        <option value="all" selected>Semua Semester</option>
+                        <option value="Ganjil">Ganjil</option>
+                        <option value="Genap">Genap</option>
+                    </select>
+                </div>
+
+                <div id="swal-export-box-bulan" style="display:none;">
+                    <label style="font-weight: bold; display: block; margin-bottom: 4px;">Bulan:</label>
+                    <input id="swal-export-bulan" type="month" class="swal2-input" value="${defaultMonth}" style="margin: 0 0 4px 0; width: 100%;">
+                </div>
+
+                <div id="swal-export-box-tanggal" style="display:none;">
+                    <label style="font-weight: bold; display: block; margin-bottom: 4px;">Dari Tanggal:</label>
+                    <input id="swal-export-from" type="date" class="swal2-input" style="margin: 0 0 10px 0; width: 100%;">
+                    <label style="font-weight: bold; display: block; margin-bottom: 4px;">Sampai Tanggal:</label>
+                    <input id="swal-export-to" type="date" class="swal2-input" style="margin: 0 0 4px 0; width: 100%;">
+                </div>
+
+                <p style="font-size:11px; color:#64748b; margin:8px 0 0;">Sheet Report 3x mengikuti filter yang sama. Bukti tindakan ikut diexport jika ada.</p>
             </div>
         `,
         focusConfirm: false,
@@ -2520,39 +3246,108 @@ async function exportToExcel(){
         confirmButtonText: '📥 Export Sekarang',
         cancelButtonText: 'Batal',
         confirmButtonColor: '#f97316',
+        didOpen: () => {
+            const modeEl = document.getElementById('swal-export-mode');
+            const boxTa = document.getElementById('swal-export-box-ta');
+            const boxBulan = document.getElementById('swal-export-box-bulan');
+            const boxTgl = document.getElementById('swal-export-box-tanggal');
+            const sync = () => {
+                const m = modeEl.value;
+                boxTa.style.display = m === 'ta_sem' ? '' : 'none';
+                boxBulan.style.display = m === 'bulan' ? '' : 'none';
+                boxTgl.style.display = m === 'tanggal' ? '' : 'none';
+            };
+            modeEl.addEventListener('change', sync);
+            sync();
+        },
         preConfirm: () => {
-            const tglAwal = document.getElementById('swal-export-from').value;
-            const tglAkhir = document.getElementById('swal-export-to').value;
-            if (!tglAwal || !tglAkhir) {
-                Swal.showValidationMessage('Harap isi kedua tanggal!');
+            const mode = document.getElementById('swal-export-mode').value;
+            if (mode === 'ta_sem') {
+                const tahunAjaran = document.getElementById('swal-export-ta').value;
+                const semester = document.getElementById('swal-export-sem').value;
+                if (!tahunAjaran) {
+                    Swal.showValidationMessage('Pilih tahun ajaran!');
+                    return false;
+                }
+                return { mode, tahunAjaran, semester };
+            }
+            if (mode === 'bulan') {
+                const bulan = document.getElementById('swal-export-bulan').value;
+                if (!bulan || !/^\d{4}-\d{2}$/.test(bulan)) {
+                    Swal.showValidationMessage('Pilih bulan!');
+                    return false;
+                }
+                return { mode, bulan };
+            }
+            const from = document.getElementById('swal-export-from').value;
+            const to = document.getElementById('swal-export-to').value;
+            if (!from || !to) {
+                Swal.showValidationMessage('Isi rentang tanggal lengkap!');
                 return false;
             }
-            if (tglAwal > tglAkhir) {
-                Swal.showValidationMessage('Tanggal awal tidak boleh lebih besar dari tanggal akhir!');
+            if (from > to) {
+                Swal.showValidationMessage('Tanggal mulai tidak boleh setelah tanggal akhir!');
                 return false;
             }
-            return { tglAwal, tglAkhir };
+            return { mode, from, to };
         }
     });
 
     if (!formValues) return;
 
-    const filteredRecords = records.filter(item => {
-    const tanggal = item.tanggal
-        ? item.tanggal.substring(0, 10)
-        : '';
-
-    return tanggal >= formValues.tglAwal &&
-           tanggal <= formValues.tglAkhir;
-});
+    const filteredRecords = filterBySchoolMode(records).filter(item => {
+        const tgl = String(item.tanggal || '').substring(0, 10);
+        if (formValues.mode === 'ta_sem') {
+            const itemTA = normTA(item.tahun_ajaran);
+            if (!itemTA || itemTA !== normTA(formValues.tahunAjaran)) return false;
+            if (formValues.semester && formValues.semester !== 'all') {
+                const sem = String(item.semester || '').trim().toLowerCase();
+                if (sem !== formValues.semester.toLowerCase()) return false;
+            }
+            return true;
+        }
+        if (formValues.mode === 'bulan') {
+            return tgl.startsWith(formValues.bulan);
+        }
+        if (!tgl) return false;
+        return tgl >= formValues.from && tgl <= formValues.to;
+    });
 
     if (!filteredRecords.length) {
+        let msg = 'Tidak ada data untuk filter yang dipilih.';
+        if (formValues.mode === 'ta_sem') {
+            const semLabel = formValues.semester === 'all' ? 'semua semester' : 'Semester ' + formValues.semester;
+            msg = `Tidak ada data untuk Tahun Ajaran ${formValues.tahunAjaran} (${semLabel}).`;
+        } else if (formValues.mode === 'bulan') {
+            msg = `Tidak ada data untuk bulan ${formValues.bulan}.`;
+        } else {
+            msg = `Tidak ada data pada ${formValues.from} s/d ${formValues.to}.`;
+        }
         return Swal.fire({
             icon: 'warning',
             title: 'Data Tidak Ditemukan',
-            text: `Tidak ada data pelanggaran dari rentang tanggal ${formValues.tglAwal} s/d ${formValues.tglAkhir}.`,
+            text: msg,
             confirmButtonColor: '#f97316'
         });
+    }
+
+    let periodeLabel, fileTA, fileSem;
+    if (formValues.mode === 'ta_sem') {
+        periodeLabel = formValues.semester === 'all'
+            ? `Tahun Ajaran ${formValues.tahunAjaran} · Semua Semester`
+            : `Tahun Ajaran ${formValues.tahunAjaran} · Semester ${formValues.semester}`;
+        fileTA = String(formValues.tahunAjaran).replace(/[\/]/g, '-');
+        fileSem = formValues.semester === 'all' ? 'Semua' : formValues.semester;
+    } else if (formValues.mode === 'bulan') {
+        const [yy, mm] = formValues.bulan.split('-');
+        const namaBulan = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'][Number(mm) - 1] || mm;
+        periodeLabel = `Bulan ${namaBulan} ${yy}`;
+        fileTA = formValues.bulan;
+        fileSem = 'Bulanan';
+    } else {
+        periodeLabel = `${formatTanggalIndonesia(formValues.from)} s/d ${formatTanggalIndonesia(formValues.to)}`;
+        fileTA = `${formValues.from}_${formValues.to}`;
+        fileSem = 'Rentang';
     }
 
     Swal.fire({
@@ -2569,11 +3364,11 @@ async function exportToExcel(){
         const ws = workbook.addWorksheet('Rekap Pelanggaran');
 
         // Area A:F tetap untuk tabel. Grafik ditempatkan di sebelah kanan tabel, mulai kolom H.
-        ws.mergeCells('A1:N1'); ws.mergeCells('A2:N2'); ws.mergeCells('A3:N3'); ws.mergeCells('A4:N4');
-        ws.getCell('A1').value = 'REKAPITULASI PELANGGARAN SISWA/SISWI';
-        ws.getCell('A2').value = 'SMP GELORA BEKASI';
+        ws.mergeCells('A1:R1'); ws.mergeCells('A2:R2'); ws.mergeCells('A3:R3'); ws.mergeCells('A4:R4');
+        ws.getCell('A1').value = 'REKAPITULASI PELANGGARAN SISWA/SISWI (' + getSchoolModeLabel() + ')';
+        ws.getCell('A2').value = 'SMP - SMK GELORA BEKASI';
         ws.getCell('A3').value = 'TAHUN AJARAN 2026-2027';
-        ws.getCell('A4').value = `PERIODE: ${formValues.tglAwal} s/d ${formValues.tglAkhir}`;
+        ws.getCell('A4').value = periodeLabel;
 
         ['A1','A2','A3','A4'].forEach((cell,i) => {
             ws.getCell(cell).font = {name:'Arial', size:i===0?14:i===1?12:10, bold:true, italic: i===3};
@@ -2581,7 +3376,15 @@ async function exportToExcel(){
         });
 
         ws.addRow([]);
-        const header = ws.addRow(['No','Hari / Tanggal','Nama Siswa','Kelas','Jenis Pelanggaran','Foto']);
+
+        // ===== TABEL: sesuaikan kolom berdasarkan mode =====
+        // SMP  → tanpa Jurusan (8 kolom)
+        // SMK / Semua → dengan Jurusan (9 kolom)
+        const showJurusanCol = schoolMode !== 'smp';
+        const headerCols = showJurusanCol
+            ? ['No','Hari / Tanggal','Nama Siswa','Kelas','Jurusan','Tahun Ajaran','Semester','Jenis Pelanggaran','Foto']
+            : ['No','Hari / Tanggal','Nama Siswa','Kelas','Tahun Ajaran','Semester','Jenis Pelanggaran','Foto'];
+        const header = ws.addRow(headerCols);
         header.eachCell(cell => {
             cell.fill = {type:'pattern', pattern:'solid', fgColor:{argb:'2F5597'}};
             cell.font = {bold:true, color:{argb:'FFFFFF'}};
@@ -2589,27 +3392,59 @@ async function exportToExcel(){
             cell.border = {top:{style:'thin'}, left:{style:'thin'}, bottom:{style:'thin'}, right:{style:'thin'}};
         });
 
-        [8,18,28,12,32,20].forEach((w,i) => ws.getColumn(i+1).width = w);
-        ws.getColumn(7).width = 3; // spacer
-        [18,18,18,18,18,18,18].forEach((w,i) => ws.getColumn(i+8).width = w);
+        const colWidths = showJurusanCol
+            ? [8, 18, 28, 12, 14, 14, 12, 32, 20]  // 9 kolom
+            : [8, 18, 28, 12, 14, 12, 32, 20];      // 8 kolom (tanpa Jurusan)
+        colWidths.forEach((w, i) => ws.getColumn(i + 1).width = w);
 
-        // Buat SEMUA grafik seperti yang tersedia di aplikasi:
-        // Jenis = bar, Kelas = bar, Tingkat = pie, Minggu = line, Bulan = line.
-        // Semua menggunakan filteredRecords dari periode export yang sama.
+        // Spacer setelah tabel, lalu area grafik di sebelah kanan
+        const tableColCount = colWidths.length;          // 8 atau 9
+        const spacerCol = tableColCount + 1;             // 9 atau 10
+        const chartStartCol = tableColCount;             // 0-based index kolom setelah tabel
+        const photoColIndex = tableColCount - 1;         // 0-based index kolom Foto
+        ws.getColumn(spacerCol).width = 3;
+        for (let c = spacerCol + 1; c <= spacerCol + 12; c++) ws.getColumn(c).width = 14;
+
+        // ===== GRAFIK: posisi vertikal berurutan, tidak saling niban =====
+        // Tinggi tiap grafik ~16 baris, jarak antar grafik 1 baris.
+        // Data sumber chart disembunyikan di kolom AA (27) ke kanan.
+        // Mode SMK punya 6 grafik (ada Per Jurusan); SMP/Semua punya 5 grafik.
+        const CHART_H = 16;
+        const CHART_GAP = 1;
+        let nextAnchorRow = 5;
+
+        function makeChartDef(key, title, chartType, catCol, valCol) {
+            const def = {
+                key, title, chartType,
+                catCol, valCol, dataStart: 2,
+                anchorRow: nextAnchorRow,
+                heightRows: CHART_H,
+                anchorCol: chartStartCol,
+                anchorColEnd: chartStartCol + 8
+            };
+            nextAnchorRow += CHART_H + CHART_GAP;
+            return def;
+        }
+
         const chartDefinitions = [
-            {key:'jenis', title:'Grafik: Jenis Pelanggaran', chartType:'bar', catCol:15, valCol:16, dataStart:2, anchorRow:4, heightRows:15},
-            {key:'kelas', title:'Grafik: Per Kelas', chartType:'bar', catCol:18, valCol:19, dataStart:2, anchorRow:20, heightRows:15},
-            {key:'tingkat', title:'Grafik: Per Tingkat', chartType:'pie', catCol:21, valCol:22, dataStart:2, anchorRow:36, heightRows:15},
-            {key:'minggu', title:'Grafik: Tren Per Minggu', chartType:'line', catCol:24, valCol:25, dataStart:2, anchorRow:52, heightRows:15},
-            {key:'bulan', title:'Grafik: Tren Per Bulan', chartType:'line', catCol:27, valCol:28, dataStart:2, anchorRow:68, heightRows:15}
+            makeChartDef('jenis',   'Grafik: Jenis Pelanggaran', 'bar',  27, 28),
+            makeChartDef('kelas',   'Grafik: Per Kelas',         'bar',  30, 31)
         ];
+        // Hanya mode SMK yang punya grafik Per Jurusan
+        if (schoolMode === 'smk') {
+            chartDefinitions.push(makeChartDef('jurusan', 'Grafik: Per Jurusan', 'bar', 42, 43));
+        }
+        chartDefinitions.push(
+            makeChartDef('tingkat', 'Grafik: Per Tingkat',       'pie',  33, 34),
+            makeChartDef('minggu',  'Grafik: Tren Per Minggu',   'line', 36, 37),
+            makeChartDef('bulan',   'Grafik: Tren Per Bulan',    'line', 39, 40)
+        );
+
         const nativeChartConfigs = [];
         chartDefinitions.forEach(def => {
             const grouped = getGroups(filteredRecords, def.key);
             const labels = grouped.map(item => item[0]);
             const values = grouped.map(item => Number(item[1]) || 0);
-            const catColLetter = String.fromCharCode(64 + def.catCol);
-            const valColLetter = String.fromCharCode(64 + def.valCol);
             ws.getCell(1, def.catCol).value = 'Kategori';
             ws.getCell(1, def.valCol).value = 'Jumlah';
             labels.forEach((label, idx) => {
@@ -2618,56 +3453,240 @@ async function exportToExcel(){
             });
             ws.getColumn(def.catCol).hidden = true;
             ws.getColumn(def.valCol).hidden = true;
-            if(labels.length){
+            if (labels.length) {
                 nativeChartConfigs.push({
                     ...def,
                     labels,
                     values,
-                    seriesLabel:'Jumlah'
+                    seriesLabel: 'Jumlah'
                 });
             }
         });
 
-        for(let i=0; i<filteredRecords.length; i++){
+        // ===== BARIS DATA =====
+        for (let i = 0; i < filteredRecords.length; i++) {
             const item = filteredRecords[i];
-            const row = ws.addRow([
-                i+1, formatTanggalIndonesia(item.tanggal)||'-', item.nama||'-', item.kelas||'-',
-                item.pelanggaran||'-', ''
-            ]);
+            const rowData = showJurusanCol
+                ? [
+                    i + 1,
+                    formatTanggalIndonesia(item.tanggal) || '-',
+                    item.nama || '-',
+                    item.kelas || '-',
+                    item.jurusan || '-',
+                    item.tahun_ajaran || '-',
+                    item.semester || '-',
+                    item.pelanggaran || '-',
+                    ''
+                  ]
+                : [
+                    i + 1,
+                    formatTanggalIndonesia(item.tanggal) || '-',
+                    item.nama || '-',
+                    item.kelas || '-',
+                    item.tahun_ajaran || '-',
+                    item.semester || '-',
+                    item.pelanggaran || '-',
+                    ''
+                  ];
+            const row = ws.addRow(rowData);
             row.height = 65;
-            row.eachCell({includeEmpty:true}, cell => {
-                cell.alignment = {vertical:'middle', horizontal:'center', wrapText:true};
-                cell.border = {top:{style:'thin'}, left:{style:'thin'}, bottom:{style:'thin'}, right:{style:'thin'}};
+            row.eachCell({ includeEmpty: true }, cell => {
+                cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+                cell.border = {
+                    top: { style: 'thin' },
+                    left: { style: 'thin' },
+                    bottom: { style: 'thin' },
+                    right: { style: 'thin' }
+                };
             });
 
-            if(item.foto_url){
-                try{
+            if (item.foto_url) {
+                try {
                     const response = await fetch(item.foto_url);
                     const arrayBuffer = await response.arrayBuffer();
-                    const imageId = workbook.addImage({buffer:arrayBuffer, extension:'jpeg'});
+                    const imageId = workbook.addImage({ buffer: arrayBuffer, extension: 'jpeg' });
                     ws.addImage(imageId, {
-                        tl: {col:5.2, row:row.number-.9},
-                        ext: {width:60, height:60},
+                        tl: { col: photoColIndex + 0.2, row: row.number - 0.9 },
+                        ext: { width: 60, height: 60 },
                         editAs: 'oneCell'
                     });
-                }catch(e){console.warn('Foto gagal dimasukkan:', e)}
+                } catch (e) {
+                    console.warn('Foto gagal dimasukkan:', e);
+                }
+            }
+        }
+
+        // ===== SHEET 2: Report 3x Pelanggaran + status tindak lanjut + foto + bukti tindakan =====
+        const threeStrikeGroups = {};
+        filteredRecords.forEach(item => {
+            const nama = String(item.nama || '').trim();
+            if (!nama) return;
+            const key = normalizeName(nama);
+            if (!threeStrikeGroups[key]) {
+                threeStrikeGroups[key] = {
+                    nama,
+                    kelas: String(item.kelas || '').trim() || '-',
+                    kelasList: [],
+                    records: [],
+                    tahun_ajaran: item.tahun_ajaran || ''
+                };
+            }
+            threeStrikeGroups[key].records.push(item);
+            const kelas = String(item.kelas || '').trim();
+            if (kelas && !threeStrikeGroups[key].kelasList.some(k => normalizeName(k) === normalizeName(kelas))) {
+                threeStrikeGroups[key].kelasList.push(kelas);
+            }
+            if (!threeStrikeGroups[key].tahun_ajaran && item.tahun_ajaran) {
+                threeStrikeGroups[key].tahun_ajaran = item.tahun_ajaran;
+            }
+        });
+
+        const threeStrikeStudents = Object.values(threeStrikeGroups)
+            .map(g => {
+                const latest = [...g.records].sort((a, b) =>
+                    String(b.tanggal || '').localeCompare(String(a.tanggal || '')) ||
+                    Number(b.id || 0) - Number(a.id || 0)
+                )[0];
+                g.kelas = String(latest?.kelas || g.kelas || '-').trim() || '-';
+                g.tahun_ajaran = g.tahun_ajaran || latest?.tahun_ajaran || '';
+                return g;
+            })
+            .filter(g => g.records.length >= 3)
+            .sort((a, b) =>
+                b.records.length - a.records.length ||
+                a.nama.localeCompare(b.nama, 'id')
+            );
+
+        const ws3 = workbook.addWorksheet('Report 3x Pelanggaran');
+        ws3.mergeCells('A1:K1');
+        ws3.mergeCells('A2:K2');
+        ws3.mergeCells('A3:K3');
+        ws3.getCell('A1').value = 'REPORT 3X PELANGGARAN — SISWA 3X ATAU LEBIH (' + getSchoolModeLabel() + ')';
+        ws3.getCell('A2').value = 'SMP - SMK GELORA BEKASI';
+        ws3.getCell('A3').value = periodeLabel;
+        ['A1', 'A2', 'A3'].forEach((cell, i) => {
+            ws3.getCell(cell).font = { name: 'Arial', size: i === 0 ? 14 : 11, bold: true };
+            ws3.getCell(cell).alignment = { horizontal: 'center', vertical: 'middle' };
+        });
+        ws3.addRow([]);
+
+        const header3 = ws3.addRow([
+            'No', 'Foto Bukti Terbaru', 'Nama Siswa', 'Kelas', 'Total Pelanggaran',
+            'Status Tindak Lanjut', 'Tanggal Tindakan', 'Ditindak Oleh', 'Catatan',
+            'Bukti Tindakan', 'Riwayat Pelanggaran'
+        ]);
+        header3.eachCell(cell => {
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'C2410C' } };
+            cell.font = { bold: true, color: { argb: 'FFFFFF' } };
+            cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+            cell.border = {
+                top: { style: 'thin' }, left: { style: 'thin' },
+                bottom: { style: 'thin' }, right: { style: 'thin' }
+            };
+        });
+        [6, 16, 28, 14, 16, 26, 16, 20, 28, 22, 50].forEach((w, i) => ws3.getColumn(i + 1).width = w);
+
+        if (!threeStrikeStudents.length) {
+            const emptyRow = ws3.addRow(['', '', 'Tidak ada siswa dengan 3x atau lebih pelanggaran pada periode ini.', '', '', '', '', '', '', '', '']);
+            ws3.mergeCells(`C${emptyRow.number}:K${emptyRow.number}`);
+            emptyRow.getCell(3).font = { italic: true, color: { argb: '64748B' } };
+        } else {
+            for (let idx = 0; idx < threeStrikeStudents.length; idx++) {
+                const g = threeStrikeStudents[idx];
+                const { follow } = getThreeStrikeFollowUp(g);
+                const sorted = [...g.records].sort((a, b) =>
+                    String(a.tanggal || '').localeCompare(String(b.tanggal || '')) ||
+                    Number(a.id || 0) - Number(b.id || 0)
+                );
+                const riwayat = sorted
+                    .map((r, n) => `${n + 1}. ${r.pelanggaran || '-'} — ${formatTanggalIndonesia(r.tanggal) || '-'}`)
+                    .join('\n');
+
+                const latestWithPhoto = [...sorted].reverse().find(r => r.foto_url) || null;
+                const status = follow.status || 'Belum Ditindak';
+                const buktiUrls = parseBuktiUrls(follow.bukti_urls);
+
+                const row = ws3.addRow([
+                    idx + 1, '',
+                    g.nama || '-', g.kelas || '-', g.records.length, status,
+                    follow.tanggal ? formatTanggalIndonesia(follow.tanggal) : '-',
+                    follow.oleh || '-', follow.catatan || '-',
+                    buktiUrls.length ? `${buktiUrls.length} bukti` : 'Tidak ada bukti',
+                    riwayat || '-'
+                ]);
+                row.height = Math.max(70, Math.min(220, 16 * Math.max(3, riwayat.split('\n').length)));
+                row.eachCell({ includeEmpty: true }, cell => {
+                    cell.alignment = { vertical: 'top', horizontal: 'left', wrapText: true };
+                    cell.border = {
+                        top: { style: 'thin' }, left: { style: 'thin' },
+                        bottom: { style: 'thin' }, right: { style: 'thin' }
+                    };
+                });
+                [1, 4, 5].forEach(c => {
+                    row.getCell(c).alignment = { vertical: 'top', horizontal: 'center', wrapText: true };
+                });
+
+                const statusCell = row.getCell(6);
+                if (status === 'Belum Ditindak') statusCell.font = { bold: true, color: { argb: 'DC2626' } };
+                else if (status.includes('Selesai')) statusCell.font = { bold: true, color: { argb: '16A34A' } };
+                else statusCell.font = { bold: true, color: { argb: 'D97706' } };
+
+                if (latestWithPhoto?.foto_url) {
+                    try {
+                        const response = await fetch(latestWithPhoto.foto_url);
+                        const arrayBuffer = await response.arrayBuffer();
+                        const imageId = workbook.addImage({ buffer: arrayBuffer, extension: 'jpeg' });
+                        ws3.addImage(imageId, {
+                            tl: { col: 1.15, row: row.number - 0.85 },
+                            ext: { width: 95, height: 75 },
+                            editAs: 'oneCell'
+                        });
+                    } catch (e) {
+                        row.getCell(2).value = 'Foto gagal dimuat';
+                        console.warn('Foto 3x gagal dimasukkan:', e);
+                    }
+                } else {
+                    row.getCell(2).value = 'Tidak ada foto';
+                }
+
+                if (buktiUrls.length) {
+                    const maxShow = Math.min(4, buktiUrls.length);
+                    for (let bi = 0; bi < maxShow; bi++) {
+                        try {
+                            const response = await fetch(buktiUrls[bi]);
+                            const arrayBuffer = await response.arrayBuffer();
+                            const imageId = workbook.addImage({ buffer: arrayBuffer, extension: 'jpeg' });
+                            ws3.addImage(imageId, {
+                                tl: { col: 9.1, row: row.number - 0.85 },
+                                ext: { width: 70, height: 55 },
+                                editAs: 'oneCell'
+                            });
+                        } catch (e) {
+                            console.warn('Bukti tindakan gagal dimasukkan:', e);
+                        }
+                    }
+                }
             }
         }
 
         let buffer = await workbook.xlsx.writeBuffer();
+        // Chart native hanya untuk sheet pertama (Rekap Pelanggaran)
         buffer = await addNativeExcelCharts(buffer, nativeChartConfigs);
-        const blob = new Blob([buffer], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+        const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
-        link.download = `Rekap_Pelanggaran_${formValues.tglAwal}_sd_${formValues.tglAkhir}.xlsx`;
+        link.download = `Rekap_Pelanggaran_${getSchoolModeLabel().replace(/\s+/g, '_')}_${fileTA}_${fileSem}.xlsx`;
         link.click();
         URL.revokeObjectURL(url);
 
+        const n3 = threeStrikeStudents.length;
         Swal.fire({
             icon: 'success',
             title: 'Berhasil Export',
-            text: 'File rekap Excel berhasil diunduh.',
+            text: n3
+                ? `File rekap berhasil diunduh (termasuk ${n3} siswa 3x+ di sheet kedua).`
+                : 'File rekap Excel berhasil diunduh.',
             confirmButtonColor: '#21a366'
         });
     }catch(err){

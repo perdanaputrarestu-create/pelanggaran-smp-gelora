@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Sistem Pelanggaran Siswa - SMP Gelora Bekasi</title>
+<title>Sistem Pelanggaran Siswa - SMP - SMK Gelora Bekasi</title>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
@@ -29,18 +29,28 @@
 
 <header class="topbar">
     <div class="logo">🏫</div>
-    <div class="brand">SMP GELORA BEKASI</div>
+    <div class="brand">SMP - SMK GELORA BEKASI</div>
     <button id="theme-toggle" class="menu-btn" onclick="toggleTheme()" title="Ubah Mode Tampilan">🌙</button>
     <button class="menu-btn" onclick="openMenu()">☰</button>
 </header>
 
 <main class="content">
 
+<!-- TOGGLE SMP / SMK -->
+<div class="school-mode-bar" id="school-mode-bar">
+    <span class="school-mode-label">Tampilkan:</span>
+    <div class="school-mode-toggle" role="group" aria-label="Filter jenjang">
+        <button type="button" class="school-mode-btn active" data-mode="all" onclick="setSchoolMode('all')">Semua</button>
+        <button type="button" class="school-mode-btn" data-mode="smp" onclick="setSchoolMode('smp')">SMP</button>
+        <button type="button" class="school-mode-btn" data-mode="smk" onclick="setSchoolMode('smk')">SMK</button>
+    </div>
+</div>
+
 <!-- BERANDA -->
 <section id="page-home" class="page active">
     <div class="hero hero-premium">
         <div class="hero-crest">🏫</div>
-        <h1>SMP GELORA BEKASI</h1>
+        <h1>SMP - SMK GELORA BEKASI</h1>
         <h2>Sistem Pelacakan Pelanggaran Siswa</h2>
         <p><span class="hero-dot"></span> 2026-2027</p>
     </div>
@@ -97,8 +107,8 @@
                 <div class="stat-icon">📅</div>
                 <div class="stat-body">
                     <div class="stat-label">Tahun Ajaran</div>
-                    <div class="stat-value" style="font-size:14px">2026-2027</div>
-                    <div class="stat-sub">Aktif</div>
+                    <div class="stat-value" id="stat-tahun-ajaran" style="font-size:14px">...</div>
+                    <div class="stat-sub" id="stat-semester">Aktif</div>
                 </div>
             </div>
         </div>
@@ -116,7 +126,7 @@
 <!-- DATA -->
 <section id="page-data" class="page">
     <h2 class="section-title" style="margin-top:0">📋 Daftar Pelanggaran</h2>
-    <div class="search"><span>🔍</span><input id="search-input" type="text" placeholder="Cari nama siswa atau kelas..." oninput="filterData()"></div>
+    <div class="search"><span>🔍</span><input id="search-input" type="text" placeholder="Cari nama, kelas, jurusan, semester..." oninput="filterData()"></div>
 
     <div id="record-list" class="record-list"></div>
 
@@ -124,7 +134,7 @@
         <table>
             <thead>
                 <tr>
-                    <th>No</th><th>Tanggal</th><th>Nama</th><th>Kelas</th><th>Pelanggaran</th><th>Foto</th><th id="th-aksi">Aksi</th>
+                    <th>No</th><th>Tanggal</th><th>Nama</th><th>Kelas</th><th id="th-jurusan">Jurusan</th><th>Pelanggaran</th><th>Foto</th><th id="th-aksi">Aksi</th>
                 </tr>
             </thead>
             <tbody id="table-body"></tbody>
@@ -158,9 +168,21 @@
             </div>
             <div class="form-group">
                 <label for="kelas">Kelas</label>
-                <input type="text" id="kelas" placeholder="Contoh: 7A" disabled>
+                <input type="text" id="kelas" placeholder="Contoh: 8A / XI TKJ 1" disabled>
+            </div>
+            <div class="form-group" id="form-group-jurusan">
+                <label for="jurusan">Jurusan <span class="file-note" id="jurusan-note">(opsional)</span></label>
+                <input type="text" id="jurusan" placeholder="Contoh: TKJ / RPL / Akuntansi" disabled>
             </div>
             <div class="form-group">
+                <label for="tahun_ajaran">Tahun Ajaran</label>
+                <input type="text" id="tahun_ajaran" placeholder="Contoh: 2026/2027" disabled>
+            </div>
+            <div class="form-group">
+                <label for="semester">Semester</label>
+                <input type="text" id="semester" placeholder="Ganjil / Genap" disabled>
+            </div>
+            <div class="form-group full">
                 <label for="pelanggaran">Jenis Pelanggaran</label>
                 <input type="text" id="pelanggaran" placeholder="Contoh: Terlambat" disabled>
             </div>
@@ -184,8 +206,9 @@
             <label for="chart-filter">Tampilkan Grafik Berdasarkan:</label>
             <select id="chart-filter" onchange="updateChart(records)">
                 <option value="jenis">⚠️ Jenis Pelanggaran</option>
-                <option value="kelas">🏫 Per Kelas (7A, 7B, 8A, dst)</option>
-                <option value="tingkat">🎓 Per Tingkat (Kelas 7, 8, & 9)</option>
+                <option value="kelas">🏫 Per Kelas (7A, XI TKJ 1, dst)</option>
+                <option value="jurusan">🛠️ Per Jurusan</option>
+                <option value="tingkat">🎓 Per Tingkat (7/8/9 atau X/XI/XII)</option>
                 <option value="minggu">📅 Tren Per Minggu</option>
                 <option value="bulan">📅 Tren Per Bulan</option>
             </select>
@@ -208,18 +231,22 @@
 <!-- REPORT 3X PELANGGARAN -->
 <section id="page-report" class="page">
     <h2 class="section-title" style="margin-top:0">🚨 Report 3x Pelanggaran</h2>
-    <div class="notice">Siswa otomatis masuk report setelah mencapai <strong>3 kali atau lebih</strong> pelanggaran. Status tindak lanjut dapat diperbarui oleh Admin.</div>
+    <div class="notice">Siswa otomatis masuk report setelah mencapai <strong>3 kali atau lebih</strong> pelanggaran <strong>dalam satu Tahun Ajaran</strong>. Hitungan reset otomatis saat ganti tahun ajaran. Status tindak lanjut &amp; bukti surat dapat diperbarui oleh Admin.</div>
     <div class="card">
-        <div class="search" style="margin-bottom:12px;">
-            <span>🔍</span><input id="report-search" type="text" placeholder="Cari nama siswa atau kelas..." oninput="renderThreeStrikeReport()">
+        <div class="form-group" style="margin-bottom:12px;">
+            <label for="report-tahun-ajaran" style="font-size:12px;font-weight:800;display:block;margin-bottom:6px;">Tahun Ajaran</label>
+            <select id="report-tahun-ajaran" onchange="renderThreeStrikeReport()" style="width:100%;padding:11px;border:1px solid var(--border);border-radius:9px;background:var(--card);color:var(--text);font-weight:700;"></select>
+            <p style="font-size:11px;color:var(--muted);margin:6px 0 0;">Hanya menghitung pelanggaran di tahun ajaran yang dipilih. Ganti TA untuk melihat history.</p>
         </div>
-        <button class="excel-btn" style="margin-bottom:12px" onclick="exportThreeStrikeReport()">📗 Export Report 3x ke Excel</button>
+        <div class="search" style="margin-bottom:12px;">
+            <span>🔍</span><input id="report-search" type="text" placeholder="Cari nama, kelas, jurusan, semester..." oninput="renderThreeStrikeReport()">
+        </div>
         <div id="report-3x-list" class="record-list"></div>
     </div>
 </section>
 
 <div class="footer-note">
-    Sistem Rekapitulasi Pelanggaran • SMP Gelora Bekasi<br>
+    Sistem Rekapitulasi Pelanggaran • SMP - SMK Gelora Bekasi<br>
     <span style="font-weight: bold; color: var(--primary);">Licensed By: Restu Putra Perdana</span>
 </div>
 </main>
@@ -261,7 +288,8 @@
         <p>Tambah dan atur hak akses pengguna sistem.</p>
         
         <div class="card" style="margin-bottom:15px; background:var(--bg)">
-            <strong style="font-size:13px; display:block; margin-bottom:8px">➕ Tambah User Baru</strong>
+            <strong style="font-size:13px; display:block; margin-bottom:8px" id="user-form-title">➕ Tambah User Baru</strong>
+            <input type="hidden" id="user-edit-id" value="">
             <div class="form-group" style="margin-bottom:8px">
                 <input id="new-nama" type="text" placeholder="Nama Lengkap">
             </div>
@@ -269,22 +297,33 @@
                 <input id="new-username" type="text" placeholder="Username">
             </div>
             <div class="form-group" style="margin-bottom:8px">
-                <input id="new-password" type="password" placeholder="Password">
+                <input id="new-password" type="password" placeholder="Password (kosongkan jika tidak diubah)">
             </div>
-            <div class="form-group" style="margin-bottom:10px">
+            <div class="form-group" style="margin-bottom:8px">
                 <select id="new-role">
                     <option value="admin">🛡️ Admin (Guru BK / Kesiswaan)</option>
                     <option value="superadmin">👑 Super Admin (Akses Penuh)</option>
                 </select>
             </div>
-            <button class="success-btn" onclick="tambahUserBaru()">💾 Simpan User Baru</button>
+            <div class="form-group" style="margin-bottom:10px">
+                <select id="new-jenjang">
+                    <option value="smp">🏫 Jenjang: SMP saja</option>
+                    <option value="smk">🛠️ Jenjang: SMK saja</option>
+                    <option value="all">🌐 Jenjang: Semua (SMP + SMK)</option>
+                </select>
+            </div>
+            <p style="font-size:11px; color:var(--muted); margin:0 0 10px;">Jenjang mengunci form <strong>Tambah Data</strong>. Toggle filter tetap bisa dipakai untuk melihat data.</p>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+                <button class="success-btn" id="btn-simpan-user" onclick="simpanUser()">💾 Simpan User</button>
+                <button class="secondary-btn" id="btn-batal-user" onclick="batalEditUser()" style="display:none">Batal Edit</button>
+            </div>
         </div>
 
         <strong style="font-size:13px">📋 Daftar User Terdaftar</strong>
         <div style="overflow-x:auto;">
             <table class="user-table">
                 <thead>
-                    <tr><th>Nama</th><th>User</th><th>Role</th><th>Aksi</th></tr>
+                    <tr><th>Nama</th><th>User</th><th>Role</th><th>Jenjang</th><th>Aksi</th></tr>
                 </thead>
                 <tbody id="user-table-body"></tbody>
             </table>

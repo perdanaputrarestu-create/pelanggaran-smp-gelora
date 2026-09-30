@@ -1394,3 +1394,71 @@ body.dark-mode .stat-navy .stat-value{color:#f8fafc}
     .content{padding-bottom:100px !important}
     .hero-premium{margin-left:-13px !important;margin-right:-13px !important;}
 }
+
+/* =========================================================
+   SCHOOL MODE TOGGLE (SMP / SMK / Semua)
+   ========================================================= */
+.school-mode-bar{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:10px;
+    flex-wrap:wrap;
+    margin:0 0 14px;
+    padding:10px 12px;
+    background:var(--card);
+    border:1px solid var(--border);
+    border-radius:14px;
+    box-shadow:var(--shadow);
+}
+.school-mode-label{
+    font-size:12px;
+    font-weight:800;
+    color:var(--muted);
+}
+.school-mode-toggle{
+    display:inline-flex;
+    background:var(--bg);
+    border-radius:999px;
+    padding:3px;
+    gap:2px;
+    border:1px solid var(--border);
+}
+.school-mode-btn{
+    border:0;
+    background:transparent;
+    color:var(--muted);
+    font-size:12px;
+    font-weight:800;
+    padding:8px 16px;
+    border-radius:999px;
+    cursor:pointer;
+    transition:background .15s, color .15s, box-shadow .15s;
+    min-width:64px;
+}
+.school-mode-btn.active{
+    background:linear-gradient(135deg,#ea580c,#f97316);
+    color:#fff;
+    box-shadow:0 4px 12px rgba(249,115,22,.35);
+}
+.school-mode-btn:not(.active):hover{
+    color:var(--text);
+    background:rgba(249,115,22,.08);
+}
+body.dark-mode .school-mode-btn.active{
+    background:linear-gradient(135deg,#ea580c,#f97316);
+    color:#fff;
+}
+@media(max-width:699px){
+    .school-mode-bar{
+        margin:0 0 12px;
+        padding:8px 10px;
+        border-radius:14px;
+        border:0;
+    }
+    .school-mode-btn{
+        padding:7px 14px;
+        font-size:11px;
+        min-width:56px;
+    }
+}
