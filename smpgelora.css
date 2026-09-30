@@ -1462,3 +1462,134 @@ body.dark-mode .school-mode-btn.active{
         min-width:56px;
     }
 }
+
+
+/* =========================================================
+   DASHBOARD INTERAKTIF
+   ========================================================= */
+.dash-filter-bar{
+    display:flex;
+    flex-wrap:wrap;
+    gap:8px;
+    margin:0 0 14px;
+    padding:4px 0;
+}
+.dash-chip{
+    border:1px solid var(--border);
+    background:var(--card);
+    color:var(--muted);
+    font-size:12px;
+    font-weight:800;
+    padding:8px 14px;
+    border-radius:999px;
+    cursor:pointer;
+    transition:background .15s, color .15s, box-shadow .15s, border-color .15s;
+}
+.dash-chip.active{
+    background:linear-gradient(135deg,#ea580c,#f97316);
+    color:#fff;
+    border-color:transparent;
+    box-shadow:0 4px 12px rgba(249,115,22,.35);
+}
+.dash-chip:not(.active):hover{
+    color:var(--text);
+    border-color:rgba(249,115,22,.4);
+    background:rgba(249,115,22,.06);
+}
+.stat-clickable{
+    cursor:pointer;
+    transition:transform .15s, box-shadow .15s;
+}
+.stat-clickable:hover{
+    transform:translateY(-2px);
+    box-shadow:0 8px 22px rgba(15,23,42,.12);
+}
+body.dark-mode .stat-clickable:hover{
+    box-shadow:0 8px 22px rgba(0,0,0,.35);
+}
+.dash-chart-card{
+    margin:0 0 14px;
+    padding:14px 16px 10px;
+    border:0;
+    border-radius:18px;
+}
+.dash-chart-box{
+    height:160px;
+    position:relative;
+}
+.dash-two-col{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:12px;
+    margin:0 0 14px;
+}
+.dash-panel{
+    border:0;
+    border-radius:18px;
+    padding:14px;
+    min-height:140px;
+}
+.dash-panel-hint{
+    font-size:11px;
+    color:var(--muted);
+    margin:0 0 10px;
+    font-weight:600;
+}
+.dash-list{
+    display:flex;
+    flex-direction:column;
+    gap:8px;
+}
+.dash-item{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:10px;
+    padding:10px 12px;
+    border-radius:12px;
+    background:var(--bg);
+    border:1px solid var(--border);
+    cursor:pointer;
+    transition:background .12s, transform .12s;
+}
+.dash-item:hover{
+    transform:translateX(2px);
+    border-color:rgba(249,115,22,.35);
+}
+.dash-item-main{min-width:0;flex:1;}
+.dash-item-name{
+    font-size:13px;
+    font-weight:800;
+    color:var(--text);
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+}
+.dash-item-meta{
+    font-size:11px;
+    color:var(--muted);
+    margin-top:2px;
+}
+.dash-item-badge{
+    flex-shrink:0;
+    font-size:11px;
+    font-weight:800;
+    padding:5px 10px;
+    border-radius:999px;
+    color:#fff;
+}
+.dash-item-badge.warn{background:#f59e0b;}
+.dash-item-badge.danger{background:#e53935;}
+.dash-item-badge.ok{background:#21a366;}
+.dash-empty{
+    font-size:12px;
+    color:var(--muted);
+    text-align:center;
+    padding:16px 8px;
+}
+.dash-quick-actions{margin:0 0 8px;}
+@media(max-width:699px){
+    .dash-two-col{grid-template-columns:1fr;}
+    .dash-chart-box{height:140px;}
+    .dash-chip{padding:7px 12px;font-size:11px;}
+}

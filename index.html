@@ -71,18 +71,27 @@
         <button id="btn-auth-home" class="access-auth-btn" onclick="toggleAdminAuth()">Login</button>
     </div>
 
-    <div class="stats stats-premium">
-        <div class="stat stat-orange">
+    <!-- Filter cepat dashboard -->
+    <div class="dash-filter-bar" id="dash-filter-bar">
+        <button type="button" class="dash-chip active" data-period="all" onclick="setDashboardPeriod('all')">Semua</button>
+        <button type="button" class="dash-chip" data-period="today" onclick="setDashboardPeriod('today')">Hari ini</button>
+        <button type="button" class="dash-chip" data-period="week" onclick="setDashboardPeriod('week')">Minggu ini</button>
+        <button type="button" class="dash-chip" data-period="month" onclick="setDashboardPeriod('month')">Bulan ini</button>
+        <button type="button" class="dash-chip" data-period="semester" onclick="setDashboardPeriod('semester')">Semester</button>
+    </div>
+
+    <div class="stats stats-premium" id="dash-stats">
+        <div class="stat stat-orange stat-clickable" onclick="showPage('data')" title="Lihat semua data">
             <div class="stat-row">
                 <div class="stat-icon">📋</div>
                 <div class="stat-body">
                     <div class="stat-label">Total Kasus</div>
                     <div class="stat-value" id="stat-total">...</div>
-                    <div class="stat-sub">Semua catatan</div>
+                    <div class="stat-sub" id="stat-total-sub">Semua catatan</div>
                 </div>
             </div>
         </div>
-        <div class="stat stat-purple">
+        <div class="stat stat-purple stat-clickable" onclick="showPage('chart')" title="Lihat grafik">
             <div class="stat-row">
                 <div class="stat-icon">⚠️</div>
                 <div class="stat-body">
@@ -92,7 +101,7 @@
                 </div>
             </div>
         </div>
-        <div class="stat stat-green">
+        <div class="stat stat-green stat-clickable" onclick="showPage('report')" title="Lihat report 3x">
             <div class="stat-row">
                 <div class="stat-icon">✅</div>
                 <div class="stat-body">
@@ -102,19 +111,51 @@
                 </div>
             </div>
         </div>
-        <div class="stat stat-navy">
+        <div class="stat stat-navy stat-clickable" onclick="showPage('report')" title="Siswa 3x+">
             <div class="stat-row">
-                <div class="stat-icon">📅</div>
+                <div class="stat-icon">🚨</div>
                 <div class="stat-body">
-                    <div class="stat-label">Tahun Ajaran</div>
-                    <div class="stat-value" id="stat-tahun-ajaran" style="font-size:14px">...</div>
-                    <div class="stat-sub" id="stat-semester">Aktif</div>
+                    <div class="stat-label">Siswa 3x+</div>
+                    <div class="stat-value" id="stat-three">...</div>
+                    <div class="stat-sub" id="stat-semester">TA aktif</div>
                 </div>
             </div>
         </div>
     </div>
 
-    <button class="excel-btn excel-premium" onclick="exportToExcel()">📊 Export ke Excel</button>
+    <!-- Mini tren 7 hari -->
+    <div class="card dash-chart-card">
+        <div class="section-head" style="margin:0 0 8px;">
+            <h3 class="section-title" style="margin:0;font-size:14px;">📈 Tren 7 Hari Terakhir</h3>
+            <span class="stat-sub" id="dash-trend-label">Kasus per hari</span>
+        </div>
+        <div class="dash-chart-box"><canvas id="dashTrendChart"></canvas></div>
+    </div>
+
+    <!-- Dua kolom: Perlu perhatian + Baru ditindak -->
+    <div class="dash-two-col">
+        <div class="card dash-panel">
+            <div class="section-head" style="margin:0 0 10px;">
+                <h3 class="section-title" style="margin:0;font-size:14px;">⚠️ Perlu Perhatian</h3>
+                <button type="button" class="link-all" onclick="showPage('report')">Report ›</button>
+            </div>
+            <p class="dash-panel-hint">Siswa dengan 2x pelanggaran (mendekati 3x)</p>
+            <div id="dash-attention-list" class="dash-list"></div>
+        </div>
+        <div class="card dash-panel">
+            <div class="section-head" style="margin:0 0 10px;">
+                <h3 class="section-title" style="margin:0;font-size:14px;">✅ Baru Ditindak</h3>
+                <button type="button" class="link-all" onclick="showPage('report')">Semua ›</button>
+            </div>
+            <p class="dash-panel-hint">Status tindak lanjut terbaru</p>
+            <div id="dash-acted-list" class="dash-list"></div>
+        </div>
+    </div>
+
+    <div class="dash-quick-actions">
+        <button class="excel-btn excel-premium" onclick="exportToExcel()">📊 Export ke Excel</button>
+        <button class="primary-btn" onclick="openForm()" style="margin-top:8px;">➕ Tambah Pelanggaran</button>
+    </div>
 
     <div class="section-head">
         <h3 class="section-title" style="margin:0">Pelanggaran Terbaru</h3>

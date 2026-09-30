@@ -21,6 +21,9 @@ let followUpMap = {};
 try { followUpMap = JSON.parse(localStorage.getItem('smpgelora_tindak_lanjut') || '{}') || {}; } catch(e) { followUpMap = {}; }
 let followUpCloudReady = false;
 let appDataLoaded = false;
+let dashboardPeriod = 'all'; // all | today | week | month | semester
+let dashTrendChart = null;
+
 
 function showAppLoading(message = 'Sedang memuat data...'){
     const loader = document.getElementById('app-loading');
@@ -304,6 +307,7 @@ function toggleTheme() {
     document.getElementById('theme-toggle').textContent = isDark ? '☀️' : '🌙';
     localStorage.setItem('theme', isDark ? 'dark' : 'light');
     if(myChart) updateChart(records);
+    if(typeof updateDashTrendChart === 'function') updateDashTrendChart();
 }
 
 if (localStorage.getItem('theme') === 'dark') {
@@ -344,6 +348,10 @@ function showPage(page){
     if(page === 'chart') updateChart(records);
     if(page === 'data') filterData();
     if(page === 'report') renderThreeStrikeReport();
+    if(page === 'home'){
+        updateStats();
+        renderRecent();
+    }
 }
 
 function openForm(){
@@ -1010,35 +1018,248 @@ async function hapusKategori(id, nama){
     }
 }
 
-function updateStats(){
-    const scoped = filterBySchoolMode(records);
-    document.getElementById('stat-total').textContent = scoped.length;
+function getDashboardDateRange(period){
+    const now = new Date();
+    const today = getLocalDateISO(now);
+    if(period === 'today'){
+        return { from: today, to: today, label: 'Hari ini' };
+    }
+    if(period === 'week'){
+        const d = new Date(now);
+        const day = d.getDay() || 7; // Senin=1 ... Minggu=7
+        d.setDate(d.getDate() - (day - 1));
+        return { from: getLocalDateISO(d), to: today, label: 'Minggu ini' };
+    }
+    if(period === 'month'){
+        const from = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-01`;
+        return { from, to: today, label: 'Bulan ini' };
+    }
+    if(period === 'semester'){
+        const { tahunAjaran, semester } = getDefaultTahunAjaranSemester();
+        return { from: null, to: null, label: 'Semester ' + semester, tahunAjaran, semester };
+    }
+    return { from: null, to: null, label: 'Semua catatan' };
+}
 
-    // Hitung jumlah kategori unik (sama logika dengan grafik Jenis Pelanggaran)
-    // Bukan lagi hitung teks mentah yang ditulis guru.
+function filterRecordsForDashboard(list){
+    const arr = filterBySchoolMode(Array.isArray(list) ? list : []);
+    const range = getDashboardDateRange(dashboardPeriod);
+    if(dashboardPeriod === 'all') return arr;
+    if(dashboardPeriod === 'semester'){
+        const ta = normTA(range.tahunAjaran);
+        const sem = String(range.semester || '').toLowerCase();
+        return arr.filter(item => {
+            if(normTA(item.tahun_ajaran) !== ta) return false;
+            if(sem && String(item.semester || '').trim().toLowerCase() !== sem) return false;
+            return true;
+        });
+    }
+    return arr.filter(item => {
+        const tgl = String(item.tanggal || '').substring(0, 10);
+        if(!tgl) return false;
+        if(range.from && tgl < range.from) return false;
+        if(range.to && tgl > range.to) return false;
+        return true;
+    });
+}
+
+function setDashboardPeriod(period){
+    if(!['all','today','week','month','semester'].includes(period)) period = 'all';
+    dashboardPeriod = period;
+    document.querySelectorAll('.dash-chip').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.period === period);
+    });
+    updateStats();
+    renderDashboardPanels();
+    updateDashTrendChart();
+}
+
+function updateStats(){
+    const scoped = filterRecordsForDashboard(records);
+    const range = getDashboardDateRange(dashboardPeriod);
+
+    const elTotal = document.getElementById('stat-total');
+    if(elTotal) elTotal.textContent = scoped.length;
+    const elTotalSub = document.getElementById('stat-total-sub');
+    if(elTotalSub) elTotalSub.textContent = range.label;
+
     const categorySet = new Set();
     scoped.forEach(item => {
         const raw = String(item.pelanggaran || '').trim();
         if(!raw) return;
         detectViolationCategories(raw).forEach(cat => categorySet.add(cat));
     });
-    document.getElementById('stat-types').textContent = categorySet.size;
+    const elTypes = document.getElementById('stat-types');
+    if(elTypes) elTypes.textContent = categorySet.size;
 
-    // Hitung siswa yang sudah ditindak berdasarkan status tindak lanjut
-    // pada Report 3x. Hanya status selain "Belum Ditindak" yang dihitung.
-    const actedStudents = getThreeStrikeStudents().filter(g => {
+    // 3x students (selalu per TA aktif, tidak terpengaruh filter hari/minggu)
+    const three = getThreeStrikeStudents();
+    const actedStudents = three.filter(g => {
         const follow = getThreeStrikeFollowUp(g).follow;
         return follow.status && follow.status !== 'Belum Ditindak';
     });
-    document.getElementById('stat-acted').textContent = actedStudents.length;
+    const elActed = document.getElementById('stat-acted');
+    if(elActed) elActed.textContent = actedStudents.length;
+    const elThree = document.getElementById('stat-three');
+    if(elThree) elThree.textContent = three.length;
 
-    // Tampilkan tahun ajaran & semester aktif di beranda
     const { tahunAjaran, semester } = getDefaultTahunAjaranSemester();
-    const elTa = document.getElementById('stat-tahun-ajaran');
     const elSem = document.getElementById('stat-semester');
-    if(elTa) elTa.textContent = tahunAjaran.replace('/', '-');
-    if(elSem) elSem.textContent = 'Semester ' + semester;
+    if(elSem) elSem.textContent = 'TA ' + String(tahunAjaran).replace('/', '-');
+
+    // Panel & tren ikut ter-refresh
+    renderDashboardPanels();
+    updateDashTrendChart();
 }
+
+/** Siswa dengan tepat 2x pelanggaran di TA aktif (hampir 3x) */
+function getNearStrikeStudents(){
+    const groups = {};
+    const targetTA = normTA(getDefaultTahunAjaranSemester().tahunAjaran);
+    filterBySchoolMode(records).forEach(item => {
+        if(normTA(item.tahun_ajaran) !== targetTA) return;
+        const nama = String(item.nama || '').trim();
+        if(!nama) return;
+        const key = normalizeName(nama);
+        if(!groups[key]){
+            groups[key] = { nama, kelas: String(item.kelas||'').trim()||'-', records: [] };
+        }
+        groups[key].records.push(item);
+        const kelas = String(item.kelas||'').trim();
+        if(kelas) groups[key].kelas = kelas;
+    });
+    return Object.values(groups)
+        .filter(g => g.records.length === 2)
+        .sort((a,b) => a.nama.localeCompare(b.nama, 'id'))
+        .slice(0, 8);
+}
+
+function renderDashboardPanels(){
+    const attBox = document.getElementById('dash-attention-list');
+    const actBox = document.getElementById('dash-acted-list');
+    if(attBox){
+        const near = getNearStrikeStudents();
+        if(!near.length){
+            attBox.innerHTML = '<div class="dash-empty">Tidak ada siswa 2x di TA ini 👍</div>';
+        } else {
+            attBox.innerHTML = near.map(g => `
+                <div class="dash-item" onclick="showPage('report')">
+                    <div class="dash-item-main">
+                        <div class="dash-item-name">${escapeHtml(g.nama)}</div>
+                        <div class="dash-item-meta">Kelas ${escapeHtml(g.kelas)} · ${g.records.length}x</div>
+                    </div>
+                    <span class="dash-item-badge warn">2x</span>
+                </div>
+            `).join('');
+        }
+    }
+    if(actBox){
+        const three = getThreeStrikeStudents();
+        const acted = three
+            .map(g => {
+                const { follow } = getThreeStrikeFollowUp(g);
+                return { g, follow };
+            })
+            .filter(x => x.follow.status && x.follow.status !== 'Belum Ditindak')
+            .sort((a,b) => String(b.follow.updated_at||b.follow.tanggal||'').localeCompare(String(a.follow.updated_at||a.follow.tanggal||'')))
+            .slice(0, 8);
+        if(!acted.length){
+            actBox.innerHTML = '<div class="dash-empty">Belum ada tindak lanjut tercatat</div>';
+        } else {
+            actBox.innerHTML = acted.map(({g, follow}) => `
+                <div class="dash-item" onclick="showPage('report')">
+                    <div class="dash-item-main">
+                        <div class="dash-item-name">${escapeHtml(g.nama)}</div>
+                        <div class="dash-item-meta">${escapeHtml(follow.status)}${follow.oleh ? ' · ' + escapeHtml(follow.oleh) : ''}</div>
+                    </div>
+                    <span class="dash-item-badge ${follow.status.includes('Selesai') ? 'ok' : 'danger'}">${escapeHtml((follow.tanggal||'').substring(0,10) || '—')}</span>
+                </div>
+            `).join('');
+        }
+    }
+}
+
+function updateDashTrendChart(){
+    const canvas = document.getElementById('dashTrendChart');
+    if(!canvas || typeof Chart === 'undefined') return;
+
+    const days = [];
+    const counts = [];
+    const now = new Date();
+    for(let i = 6; i >= 0; i--){
+        const d = new Date(now);
+        d.setDate(d.getDate() - i);
+        const iso = getLocalDateISO(d);
+        days.push(iso);
+        counts.push(0);
+    }
+    const scoped = filterBySchoolMode(records);
+    scoped.forEach(item => {
+        const tgl = String(item.tanggal || '').substring(0, 10);
+        const idx = days.indexOf(tgl);
+        if(idx >= 0) counts[idx]++;
+    });
+
+    const labels = days.map(iso => {
+        const [, m, d] = iso.split('-');
+        return `${parseInt(d,10)}/${parseInt(m,10)}`;
+    });
+    const totalWeek = counts.reduce((a,b)=>a+b,0);
+    const elLabel = document.getElementById('dash-trend-label');
+    if(elLabel) elLabel.textContent = `${totalWeek} kasus · 7 hari`;
+
+    const isDark = document.body.classList.contains('dark-mode');
+    const gridColor = isDark ? 'rgba(148,163,184,.15)' : 'rgba(15,23,42,.06)';
+    const textColor = isDark ? '#94a3b8' : '#64748b';
+
+    if(dashTrendChart){
+        dashTrendChart.data.labels = labels;
+        dashTrendChart.data.datasets[0].data = counts;
+        dashTrendChart.options.scales.x.ticks.color = textColor;
+        dashTrendChart.options.scales.y.ticks.color = textColor;
+        dashTrendChart.options.scales.y.grid.color = gridColor;
+        dashTrendChart.update();
+        return;
+    }
+
+    dashTrendChart = new Chart(canvas.getContext('2d'), {
+        type: 'line',
+        data: {
+            labels,
+            datasets: [{
+                label: 'Kasus',
+                data: counts,
+                borderColor: '#f97316',
+                backgroundColor: 'rgba(249,115,22,.12)',
+                fill: true,
+                tension: 0.35,
+                pointRadius: 4,
+                pointBackgroundColor: '#f97316',
+                borderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: { mode: 'index', intersect: false }
+            },
+            scales: {
+                x: {
+                    ticks: { color: textColor, font: { size: 10, weight: '700' } },
+                    grid: { display: false }
+                },
+                y: {
+                    beginAtZero: true,
+                    ticks: { color: textColor, stepSize: 1, font: { size: 10 } },
+                    grid: { color: gridColor }
+                }
+            }
+        }
+    });
+}
+
 
 /** Deteksi kategori pelanggaran berdasarkan keyword dinamis dari Supabase */
 function detectViolationCategories(text){
