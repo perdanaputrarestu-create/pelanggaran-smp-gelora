@@ -48,40 +48,49 @@ async function exportThreeStrikeReport(){
         const workbook = new ExcelJS.Workbook();
         const ws = workbook.addWorksheet('Report 3x');
 
+        const { tahunAjaran: defaultTA3 } = getDefaultTahunAjaranSemester();
+        const taLabel3 = (typeof getAvailableTahunAjaranList === 'function' && getAvailableTahunAjaranList().length)
+            ? getAvailableTahunAjaranList()[0]
+            : defaultTA3;
+
         ws.mergeCells('A1:J1');
         ws.mergeCells('A2:J2');
         ws.mergeCells('A3:J3');
         ws.getCell('A1').value = 'REPORT SISWA 3X PELANGGARAN (' + getSchoolModeLabel() + ')';
         ws.getCell('A2').value = 'SMP - SMK GELORA BEKASI';
-        ws.getCell('A3').value = 'TAHUN AJARAN ' + String(formValues.tahunAjaran).replace('/', '-');
+        ws.getCell('A3').value = 'Tahun Ajaran ' + String(taLabel3 || defaultTA3).replace(/\//g, '-');
 
         ['A1','A2','A3'].forEach((cell,i)=>{
             ws.getCell(cell).font = {
                 name:'Arial',
                 size:i===0?14:i===1?12:10,
-                bold:true
+                bold:true,
+                color: { argb: i === 0 ? '0F172A' : '334155' }
             };
             ws.getCell(cell).alignment = {
                 horizontal:'center',
                 vertical:'middle'
             };
         });
+        ws.getRow(1).height = 22;
+        ws.getRow(2).height = 18;
+        ws.getRow(3).height = 16;
 
-        ws.addRow([]);
-
+        // Header langsung baris 4 (tanpa baris kosong)
         const header = ws.addRow([
             'No','Foto Bukti Terbaru','Nama Siswa','Kelas','Total Pelanggaran',
             'Status Tindak Lanjut','Tanggal Tindakan','Ditindak Oleh',
             'Catatan','Riwayat Pelanggaran'
         ]);
+        header.height = 22;
 
         header.eachCell(cell=>{
             cell.fill = {
                 type:'pattern',
                 pattern:'solid',
-                fgColor:{argb:'2F5597'}
+                fgColor:{argb:'C2410C'}
             };
-            cell.font = {bold:true, color:{argb:'FFFFFF'}};
+            cell.font = {name:'Arial', bold:true, color:{argb:'FFFFFF'}, size:10};
             cell.alignment = {
                 horizontal:'center',
                 vertical:'middle',
@@ -95,8 +104,10 @@ async function exportThreeStrikeReport(){
             };
         });
 
-        [7,16,28,12,18,27,18,24,38,55]
+        [6,14,26,12,14,22,14,18,28,48]
             .forEach((w,i)=>ws.getColumn(i+1).width=w);
+
+        ws.views = [{ state: 'frozen', xSplit: 0, ySplit: 4, topLeftCell: 'A5', activeCell: 'A5' }];
 
         let no = 0;
 
@@ -494,114 +505,76 @@ async function exportToExcel(){
     });
 
     try{
-        // Data chart native akan diambil langsung dari filteredRecords setelah workbook dibuat.
+        // PENTING: tulis judul → header → DATA TABEL dulu, baru sumber chart di kolom tersembunyi.
+        // Jika sumber chart ditulis lebih dulu via getCell(baris tinggi), ExcelJS menaikkan
+        // rowCount sehingga addRow() data terdorong jauh ke bawah (header baris 6, data baris 18+).
 
         const workbook = new ExcelJS.Workbook();
         const ws = workbook.addWorksheet('Rekap Pelanggaran');
 
-        // Area A:F tetap untuk tabel. Grafik ditempatkan di sebelah kanan tabel, mulai kolom H.
-        ws.mergeCells('A1:R1'); ws.mergeCells('A2:R2'); ws.mergeCells('A3:R3'); ws.mergeCells('A4:R4');
-        ws.getCell('A1').value = 'REKAPITULASI PELANGGARAN SISWA/SISWI (' + getSchoolModeLabel() + ')';
-        ws.getCell('A2').value = 'SMP - SMK GELORA BEKASI';
-        ws.getCell('A3').value = (formValues.mode === 'ta_sem')
-            ? ('TAHUN AJARAN ' + String(formValues.tahunAjaran || '').replace(/\//g, '-'))
-            : ('PERIODE: ' + periodeLabel);
-        ws.getCell('A4').value = periodeLabel;
-
-        ['A1','A2','A3','A4'].forEach((cell,i) => {
-            ws.getCell(cell).font = {name:'Arial', size:i===0?14:i===1?12:10, bold:true, italic: i===3};
-            ws.getCell(cell).alignment = {horizontal:'center', vertical:'middle'};
-        });
-
-        ws.addRow([]);
-
-        // ===== TABEL: sesuaikan kolom berdasarkan mode =====
-        // SMP  → tanpa Jurusan (8 kolom)
-        // SMK / Semua → dengan Jurusan (9 kolom)
+        // SMP → tanpa Jurusan (8 kolom); SMK / Semua → dengan Jurusan (9 kolom)
         const showJurusanCol = schoolMode !== 'smp';
         const headerCols = showJurusanCol
             ? ['No','Hari / Tanggal','Nama Siswa','Kelas','Jurusan','Tahun Ajaran','Semester','Jenis Pelanggaran','Foto']
             : ['No','Hari / Tanggal','Nama Siswa','Kelas','Tahun Ajaran','Semester','Jenis Pelanggaran','Foto'];
-        const header = ws.addRow(headerCols);
-        header.eachCell(cell => {
-            cell.fill = {type:'pattern', pattern:'solid', fgColor:{argb:'2F5597'}};
-            cell.font = {bold:true, color:{argb:'FFFFFF'}};
-            cell.alignment = {horizontal:'center', vertical:'middle'};
-            cell.border = {top:{style:'thin'}, left:{style:'thin'}, bottom:{style:'thin'}, right:{style:'thin'}};
-        });
-
         const colWidths = showJurusanCol
-            ? [8, 18, 28, 12, 14, 14, 12, 32, 20]  // 9 kolom
-            : [8, 18, 28, 12, 14, 12, 32, 20];      // 8 kolom (tanpa Jurusan)
-        colWidths.forEach((w, i) => ws.getColumn(i + 1).width = w);
+            ? [6, 16, 26, 12, 12, 13, 11, 28, 12]
+            : [6, 16, 26, 12, 13, 11, 28, 12];
+        const tableColCount = colWidths.length; // 8 atau 9
+        const lastTableColLetter = String.fromCharCode(64 + tableColCount); // H atau I
+        const photoColIndex = tableColCount - 1; // 0-based index kolom Foto
+        // Chart di kanan tabel (0-based col = tableColCount → kolom setelah terakhir)
+        const chartStartCol = tableColCount;
+        const spacerCol = tableColCount + 1;
 
-        // Spacer setelah tabel, lalu area grafik di sebelah kanan
-        const tableColCount = colWidths.length;          // 8 atau 9
-        const spacerCol = tableColCount + 1;             // 9 atau 10
-        const chartStartCol = tableColCount;             // 0-based index kolom setelah tabel
-        const photoColIndex = tableColCount - 1;         // 0-based index kolom Foto
-        ws.getColumn(spacerCol).width = 3;
-        for (let c = spacerCol + 1; c <= spacerCol + 12; c++) ws.getColumn(c).width = 14;
+        // ===== JUDUL (rapi, hanya sepanjang kolom tabel) =====
+        ws.mergeCells(`A1:${lastTableColLetter}1`);
+        ws.mergeCells(`A2:${lastTableColLetter}2`);
+        ws.mergeCells(`A3:${lastTableColLetter}3`);
+        ws.getCell('A1').value = 'REKAPITULASI PELANGGARAN SISWA/SISWI (' + getSchoolModeLabel() + ')';
+        ws.getCell('A2').value = 'SMP - SMK GELORA BEKASI';
+        ws.getCell('A3').value = (formValues.mode === 'ta_sem')
+            ? ('Tahun Ajaran ' + String(formValues.tahunAjaran || '').replace(/\//g, '-') +
+               (formValues.semester && formValues.semester !== 'all' ? ' · Semester ' + formValues.semester : ' · Semua Semester'))
+            : periodeLabel;
 
-        // ===== GRAFIK: posisi vertikal berurutan, tidak saling niban =====
-        // Tinggi tiap grafik ~16 baris, jarak antar grafik 1 baris.
-        // Data sumber chart disembunyikan di kolom AA (27) ke kanan.
-        // Mode SMK punya 6 grafik (ada Per Jurusan); SMP/Semua punya 5 grafik.
-        const CHART_H = 16;
-        const CHART_GAP = 1;
-        let nextAnchorRow = 5;
-
-        function makeChartDef(key, title, chartType, catCol, valCol) {
-            const def = {
-                key, title, chartType,
-                catCol, valCol, dataStart: 2,
-                anchorRow: nextAnchorRow,
-                heightRows: CHART_H,
-                anchorCol: chartStartCol,
-                anchorColEnd: chartStartCol + 8
+        ['A1','A2','A3'].forEach((cell, i) => {
+            ws.getCell(cell).font = {
+                name: 'Arial',
+                size: i === 0 ? 14 : i === 1 ? 12 : 10,
+                bold: true,
+                color: { argb: i === 0 ? '0F172A' : '334155' }
             };
-            nextAnchorRow += CHART_H + CHART_GAP;
-            return def;
-        }
-
-        const chartDefinitions = [
-            makeChartDef('jenis',   'Grafik: Jenis Pelanggaran', 'bar',  27, 28),
-            makeChartDef('kelas',   'Grafik: Per Kelas',         'bar',  30, 31)
-        ];
-        // Hanya mode SMK yang punya grafik Per Jurusan
-        if (schoolMode === 'smk') {
-            chartDefinitions.push(makeChartDef('jurusan', 'Grafik: Per Jurusan', 'bar', 42, 43));
-        }
-        chartDefinitions.push(
-            makeChartDef('tingkat', 'Grafik: Per Tingkat',       'pie',  33, 34),
-            makeChartDef('minggu',  'Grafik: Tren Per Minggu',   'line', 36, 37),
-            makeChartDef('bulan',   'Grafik: Tren Per Bulan',    'line', 39, 40)
-        );
-
-        const nativeChartConfigs = [];
-        chartDefinitions.forEach(def => {
-            const grouped = getGroups(filteredRecords, def.key);
-            const labels = grouped.map(item => item[0]);
-            const values = grouped.map(item => Number(item[1]) || 0);
-            ws.getCell(1, def.catCol).value = 'Kategori';
-            ws.getCell(1, def.valCol).value = 'Jumlah';
-            labels.forEach((label, idx) => {
-                ws.getCell(def.dataStart + idx, def.catCol).value = label;
-                ws.getCell(def.dataStart + idx, def.valCol).value = values[idx];
-            });
-            ws.getColumn(def.catCol).hidden = true;
-            ws.getColumn(def.valCol).hidden = true;
-            if (labels.length) {
-                nativeChartConfigs.push({
-                    ...def,
-                    labels,
-                    values,
-                    seriesLabel: 'Jumlah'
-                });
-            }
+            ws.getCell(cell).alignment = { horizontal: 'center', vertical: 'middle' };
         });
+        ws.getRow(1).height = 22;
+        ws.getRow(2).height = 18;
+        ws.getRow(3).height = 16;
 
-        // ===== BARIS DATA =====
+        // ===== HEADER TABEL (langsung baris 4, tanpa baris kosong) =====
+        const header = ws.addRow(headerCols);
+        header.height = 22;
+        header.eachCell(cell => {
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: '1E3A5F' } };
+            cell.font = { name: 'Arial', bold: true, color: { argb: 'FFFFFF' }, size: 10 };
+            cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+            cell.border = {
+                top: { style: 'thin', color: { argb: '0F172A' } },
+                left: { style: 'thin', color: { argb: '0F172A' } },
+                bottom: { style: 'thin', color: { argb: '0F172A' } },
+                right: { style: 'thin', color: { argb: '0F172A' } }
+            };
+        });
+        colWidths.forEach((w, i) => { ws.getColumn(i + 1).width = w; });
+
+        // Spacer + area grafik di kanan (tidak meniban tabel)
+        ws.getColumn(spacerCol).width = 3;
+        for (let c = spacerCol + 1; c <= spacerCol + 10; c++) ws.getColumn(c).width = 12;
+
+        // Freeze header agar judul+header tetap terlihat saat scroll
+        ws.views = [{ state: 'frozen', xSplit: 0, ySplit: 4, topLeftCell: 'A5', activeCell: 'A5' }];
+
+        // ===== BARIS DATA (langsung di bawah header — baris 5, 6, 7, ...) =====
         for (let i = 0; i < filteredRecords.length; i++) {
             const item = filteredRecords[i];
             const rowData = showJurusanCol
@@ -627,21 +600,84 @@ async function exportToExcel(){
                     ''
                   ];
             const row = ws.addRow(rowData);
-            row.height = 65;
-            row.eachCell({ includeEmpty: true }, cell => {
-                cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
-                cell.border = {
-                    top: { style: 'thin' },
-                    left: { style: 'thin' },
-                    bottom: { style: 'thin' },
-                    right: { style: 'thin' }
+            row.height = 58;
+            row.eachCell({ includeEmpty: true }, (cell, colNumber) => {
+                cell.font = { name: 'Arial', size: 10 };
+                const isTextCol = colNumber === 3 || colNumber === (showJurusanCol ? 8 : 7);
+                cell.alignment = {
+                    vertical: 'middle',
+                    horizontal: isTextCol ? 'left' : 'center',
+                    wrapText: true,
+                    indent: isTextCol ? 1 : 0
                 };
+                cell.border = {
+                    top: { style: 'thin', color: { argb: 'CBD5E1' } },
+                    left: { style: 'thin', color: { argb: 'CBD5E1' } },
+                    bottom: { style: 'thin', color: { argb: 'CBD5E1' } },
+                    right: { style: 'thin', color: { argb: 'CBD5E1' } }
+                };
+                if (i % 2 === 1) {
+                    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'F8FAFC' } };
+                }
             });
-
-            // foto diisi setelah batch parallel di bawah
             row._exportFotoUrl = item.foto_url || null;
             row._exportRowNumber = row.number;
         }
+
+        // ===== SUMBER CHART (kolom tersembunyi) — SETELAH data tabel =====
+        // Mode SMK: + grafik Per Jurusan; SMP/Semua: tanpa jurusan chart
+        const CHART_H = 14;
+        const CHART_GAP = 1;
+        let nextAnchorRow = 0; // 0-based row untuk anchor chart (sejajar judul, di KANAN tabel)
+
+        function makeChartDef(key, title, chartType, catCol, valCol) {
+            const def = {
+                key, title, chartType,
+                catCol, valCol, dataStart: 2,
+                anchorRow: nextAnchorRow,
+                heightRows: CHART_H,
+                anchorCol: chartStartCol,
+                anchorColEnd: chartStartCol + 7
+            };
+            nextAnchorRow += CHART_H + CHART_GAP;
+            return def;
+        }
+
+        const chartDefinitions = [
+            makeChartDef('jenis',   'Grafik: Jenis Pelanggaran', 'bar',  27, 28),
+            makeChartDef('kelas',   'Grafik: Per Kelas',         'bar',  30, 31)
+        ];
+        if (schoolMode === 'smk') {
+            chartDefinitions.push(makeChartDef('jurusan', 'Grafik: Per Jurusan', 'bar', 42, 43));
+        }
+        chartDefinitions.push(
+            makeChartDef('tingkat', 'Grafik: Per Tingkat',     'pie',  33, 34),
+            makeChartDef('minggu',  'Grafik: Tren Per Minggu', 'line', 36, 37),
+            makeChartDef('bulan',   'Grafik: Tren Per Bulan',  'line', 39, 40)
+        );
+
+        const nativeChartConfigs = [];
+        chartDefinitions.forEach(def => {
+            const grouped = getGroups(filteredRecords, def.key);
+            const labels = grouped.map(item => item[0]);
+            const values = grouped.map(item => Number(item[1]) || 0);
+            ws.getCell(1, def.catCol).value = 'Kategori';
+            ws.getCell(1, def.valCol).value = 'Jumlah';
+            labels.forEach((label, idx) => {
+                ws.getCell(def.dataStart + idx, def.catCol).value = label;
+                ws.getCell(def.dataStart + idx, def.valCol).value = values[idx];
+            });
+            ws.getColumn(def.catCol).hidden = true;
+            ws.getColumn(def.valCol).hidden = true;
+            if (labels.length) {
+                nativeChartConfigs.push({
+                    ...def,
+                    labels,
+                    values,
+                    seriesLabel: 'Jumlah'
+                });
+            }
+        });
 
         // Parallel fetch foto tabel utama (lebih cepat dari sequential)
         {
@@ -721,26 +757,36 @@ async function exportToExcel(){
         ws3.getCell('A2').value = 'SMP - SMK GELORA BEKASI';
         ws3.getCell('A3').value = periodeLabel;
         ['A1', 'A2', 'A3'].forEach((cell, i) => {
-            ws3.getCell(cell).font = { name: 'Arial', size: i === 0 ? 14 : 11, bold: true };
+            ws3.getCell(cell).font = {
+                name: 'Arial',
+                size: i === 0 ? 14 : 11,
+                bold: true,
+                color: { argb: i === 0 ? '0F172A' : '334155' }
+            };
             ws3.getCell(cell).alignment = { horizontal: 'center', vertical: 'middle' };
         });
-        ws3.addRow([]);
+        ws3.getRow(1).height = 22;
+        ws3.getRow(2).height = 18;
+        ws3.getRow(3).height = 16;
 
+        // Header langsung baris 4 (tanpa baris kosong)
         const header3 = ws3.addRow([
             'No', 'Foto Bukti Terbaru', 'Nama Siswa', 'Kelas', 'Total Pelanggaran',
             'Status Tindak Lanjut', 'Tanggal Tindakan', 'Ditindak Oleh', 'Catatan',
             'Bukti Tindakan', 'Riwayat Pelanggaran'
         ]);
+        header3.height = 22;
         header3.eachCell(cell => {
             cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'C2410C' } };
-            cell.font = { bold: true, color: { argb: 'FFFFFF' } };
+            cell.font = { name: 'Arial', bold: true, color: { argb: 'FFFFFF' }, size: 10 };
             cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
             cell.border = {
                 top: { style: 'thin' }, left: { style: 'thin' },
                 bottom: { style: 'thin' }, right: { style: 'thin' }
             };
         });
-        [6, 16, 28, 14, 16, 26, 16, 20, 28, 22, 50].forEach((w, i) => ws3.getColumn(i + 1).width = w);
+        [6, 14, 26, 12, 14, 22, 14, 18, 26, 18, 48].forEach((w, i) => ws3.getColumn(i + 1).width = w);
+        ws3.views = [{ state: 'frozen', xSplit: 0, ySplit: 4, topLeftCell: 'A5', activeCell: 'A5' }];
 
         if (!threeStrikeStudents.length) {
             const emptyRow = ws3.addRow(['', '', 'Tidak ada siswa dengan 3x atau lebih pelanggaran pada periode ini.', '', '', '', '', '', '', '', '']);
